@@ -1,0 +1,6 @@
+2026/02/20-00:27:41.464 2b7c Reusing MANIFEST C:\Users\Computador\Music\01\teste-6\server\whatsapp-auth\session\Default\shared_proto_db/MANIFEST-000001
+2026/02/20-00:27:41.465 2b7c Recovering log #4
+2026/02/20-00:27:41.467 2b7c Reusing old log C:\Users\Computador\Music\01\teste-6\server\whatsapp-auth\session\Default\shared_proto_db/000004.log 
+2026/02/20-00:27:41.484 41e0 Level-0 table #8: started
+2026/02/20-00:27:41.491 41e0 Level-0 table #8: 69642 bytes OK
+2026/02/20-00:27:41.493 41e0 Delete type=0 #4

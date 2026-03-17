@@ -1,0 +1,970 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// SQLite does not support native Enums, so we use Strings.
+
+// Models
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("agent") // Values: admin, super_admin, buyer, agent
+  team      String?
+  avatar    String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads          Lead[]
+  tasks          Task[]
+  emailCampaigns EmailCampaign[]
+  emailTemplates EmailTemplate[]
+  emailLists     EmailList[]
+  emailAutomations EmailAutomation[]
+  leadRouletteAgent LeadRouletteAgent?
+
+  createdPersons   Person[] @relation("PersonCreator")
+  auditLogs        AuditLog[]
+  settings         String?  // JSON: { notifications: {}, theme: '', ... }
+}
+
+model SystemSettings {
+  id              String   @id @default("default")
+  branding        String?  // JSON: { logo: '', colors: {} }
+  integrations    String?  // JSON: { docusign: {}, google: {} }
+  security        String?  // JSON: { passwordPolicy: {}, 2fa: {} }
+  api             String?  // JSON: { tokens: {} }
+  
+  updatedAt       DateTime @updatedAt
+}
+
+model Lead {
+  id              String   @id @default(uuid())
+  name            String?
+  email           String?
+  phone           String?
+  status          String   @default("Novo") // Values: Novo, Em_Triagem, ...
+  interest        String?
+  source          String   @default("site")
+  value           Float?
+  temperature     String?  // hot, warm, cold
+  probability     Int?
+  notes           String?  // Text
+  ownerId         String?
+  
+  // JSON fields
+  tags            String   @default("[]")
+  enrichedData    String?
+  profile         String?
+  preferences     String?
+  
+  assignedTo      String?
+  user            User?    @relation(fields: [assignedTo], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastInteraction DateTime @default(now())
+
+  tenantId        String?  // Multi-tenant support
+
+  tasks           Task[]
+  documents       LeadDocument[]
+  emailRecipients EmailRecipient[]
+}
+
+model LeadDocument {
+  id         String   @id @default(uuid())
+  name       String
+  url        String
+  type       String
+  uploadedAt DateTime @default(now())
+  leadId     String
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model AttendanceEvent {
+  id        String   @id @default(uuid())
+  ownerId   String
+  chatId    String
+  messageId String
+  direction String
+  timestamp DateTime
+  name      String?
+  phone     String?
+  createdAt DateTime @default(now())
+
+  @@index([ownerId, timestamp])
+  @@index([ownerId, chatId])
+  @@unique([ownerId, messageId])
+}
+
+model Task {
+  id        String   @id @default(uuid())
+  title     String
+  dueDate   DateTime
+  completed Boolean  @default(false)
+  type      String
+  notes     String?
+  
+  leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id])
+  userId    String? 
+  user      User?    @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Property {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  price       Float
+  type        String   // Values: Apartamento, Casa, ...
+  
+  // Address
+  address     String
+  city        String
+  state       String
+  
+  // Details
+  bedrooms    Int
+  bathrooms   Int
+  suites      Int
+  area        Float
+  
+  // Status
+  status      String   @default("active")
+  featured    Boolean  @default(false)
+  
+  // JSONs
+  images      String   @default("[]") 
+  features    String   @default("[]") 
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Real Estate Relations
+  ownerId     String?
+  owner       Person?  @relation("PropertyOwner", fields: [ownerId], references: [id])
+  contracts   LeaseContract[]
+  maintenances MaintenanceTicket[]
+  inspections Inspection[]
+  
+  tenantId        String?  // Multi-tenant support
+
+  campaigns       Campaign[]
+}
+
+model Campaign {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  discountPercentage Float?
+  startDate   DateTime
+  endDate     DateTime?
+  active      Boolean  @default(true)
+  image       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  properties  Property[]
+}
+
+  // Background Jobs System
+
+model JobQueue {
+  id          String   @id @default(uuid())
+  type        String   // whatsapp_send, email_send
+  payload     String   // JSON
+  status      String   @default("pending") // pending, processing, completed, failed
+  attempts    Int      @default(0)
+  lastError   String?
+  
+  scheduledFor DateTime?
+  createdAt    DateTime @default(now())
+  processedAt  DateTime?
+}
+
+// Email Marketing Module
+
+model EmailCampaign {
+  id              String   @id @default(uuid())
+  name            String
+  subject         String
+  preheader       String?
+  senderName      String
+  senderEmail     String
+  replyTo         String?
+  
+  type            String   @default("manual") // manual, automation
+  status          String   @default("draft") // draft, scheduled, sending, sent, paused, failed
+  
+  templateId      String?
+  template        EmailTemplate? @relation(fields: [templateId], references: [id])
+  
+  htmlContent     String?
+  jsonContent     String?  // Block structure for editor
+  
+  segmentId       String?
+  segmentRules    String?  // JSON segmentation criteria
+  
+  recipientCount  Int      @default(0)
+  sentCount       Int      @default(0)
+  deliveredCount  Int      @default(0)
+  openedCount     Int      @default(0)
+  clickedCount    Int      @default(0)
+  bouncedCount    Int      @default(0)
+  unsubscribedCount Int    @default(0)
+  
+  openRate        Float    @default(0)
+  clickRate       Float    @default(0)
+  bounceRate      Float    @default(0)
+  
+  abTestEnabled   Boolean  @default(false)
+  abTestConfig    String?  // JSON
+  
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  recipients      EmailRecipient[]
+  metrics         EmailMetrics[]
+}
+
+model EmailTemplate {
+  id           String   @id @default(uuid())
+  name         String
+  category     String   @default("custom") // launch, newsletter, follow_up, reengagement, institutional, custom
+  htmlContent  String
+  jsonContent  String?  // Block structure
+  variables    String   @default("[]") // JSON array of variable keys
+  isSystem     Boolean  @default(false)
+  isGlobal     Boolean  @default(false)
+  active       Boolean  @default(true)
+  thumbnail    String?
+  
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  campaigns    EmailCampaign[]
+  automations  EmailAutomation[]
+}
+
+model EmailRecipient {
+  id             String   @id @default(uuid())
+  
+  campaignId     String
+  campaign       EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  leadId         String?
+  lead           Lead?    @relation(fields: [leadId], references: [id])
+  
+  email          String
+  name           String?
+  
+  status         String   @default("pending") // pending, sent, delivered, opened, clicked, bounced, unsubscribed
+  
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  openedAt       DateTime?
+  clickedAt      DateTime?
+  bouncedAt      DateTime?
+  unsubscribedAt DateTime?
+  
+  openCount      Int      @default(0)
+  clickCount     Int      @default(0)
+  
+  device         String?
+  location       String?
+  userAgent      String?
+  
+  createdAt      DateTime @default(now())
+}
+
+model EmailMetrics {
+  id          String   @id @default(uuid())
+  
+  campaignId  String
+  campaign    EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  linkUrl     String
+  linkText    String?
+  clickCount  Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model EmailAutomation {
+  id          String   @id @default(uuid())
+  name        String
+  
+  trigger     String   // new_lead, status_change, property_favorited, appointment_scheduled, stagnant_lead, birthday, custom
+  conditions  String?  // JSON array of conditions
+  actions     String   // JSON array of actions
+  
+  templateId  String
+  template    EmailTemplate @relation(fields: [templateId], references: [id])
+  
+  enabled     Boolean  @default(false)
+  
+  scheduleFrequency String? // immediate, daily, weekly, monthly
+  scheduleDelay     Int?    // minutes
+  
+  lastRun     DateTime?
+  nextRun     DateTime?
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model EmailList {
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  type          String   @default("static") // static, dynamic
+  segmentRules  String?  // JSON
+  contactCount  Int      @default(0)
+  
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  contacts      EmailContact[]
+}
+
+model EmailContact {
+  id               String   @id @default(uuid())
+  
+  leadId           String?
+  
+  email            String
+  name             String?
+  
+  status           String   @default("active") // active, inactive, unsubscribed, bounced
+  
+  consentDate      DateTime?
+  consentSource    String?
+  unsubscribeDate  DateTime?
+  unsubscribeReason String?
+  
+  customFields     String?  // JSON
+  
+  listId           String?
+  list             EmailList? @relation(fields: [listId], references: [id])
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// Social Media Module
+
+model SocialAccountConnection {
+  id        String   @id @default(uuid())
+  provider  String
+  name      String
+  status    String   @default("disconnected") // connected, disconnected, error
+  settings  String?
+  externalId String?
+  profileUrl String?
+  connectedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  token     SocialIntegrationToken?
+
+  @@unique([provider])
+}
+
+model SocialIntegrationToken {
+  id           String   @id @default(uuid())
+  provider     String
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  tokenType    String?
+  scope        String?
+  accountId    String?
+  meta         String?
+  connectionId String?  @unique
+  connection   SocialAccountConnection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([provider])
+}
+
+model SocialMediaItem {
+  id         String   @id @default(uuid())
+  name       String
+  type       String
+  url        String
+  uploadedAt DateTime @default(now())
+  usageCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  posts      SocialPost[]
+}
+
+model SocialPost {
+  id          String   @id @default(uuid())
+  text        String
+  mediaUrl    String?
+  mediaId     String?
+  media       SocialMediaItem? @relation(fields: [mediaId], references: [id])
+  providers   String   @default("[]")
+  status      String   @default("draft") // draft, scheduled, published, error
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  metrics     String?
+  hashtags    String?
+  link        String?
+  cta         String?
+  placements  String?
+  settings    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([publishedAt])
+}
+
+// Lead Roulette (Distribuicao de Leads)
+
+model LeadRouletteSettings {
+  id                   String   @id @default(uuid())
+  enabled              Boolean  @default(true)
+  defaultMode          String   @default("always") // always, sources
+  criteriaIgnoreLimit  Boolean  @default(true)
+  criteriaIgnoreOffline Boolean @default(true)
+  criteriaRespectHours Boolean  @default(true)
+  criteriaAllowSkip    Boolean  @default(false)
+  tieBreaker           String   @default("least_leads") // least_leads, longest_wait, fixed_order
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model LeadRouletteRule {
+  id          String   @id @default(uuid())
+  name        String
+  active      Boolean  @default(true)
+  strategy    String
+  sources     String   @default("[]") // JSON array
+  pipelines   String   @default("[]") // JSON array
+  description String?
+  orderIndex  Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model LeadRouletteAgent {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  status          String   @default("disponivel") // disponivel, pausado, offline, limite_atingido
+  weight          Int      @default(1)
+  maxLeadsPerDay  Int?
+  leadsToday      Int      @default(0)
+  leadsTodayDate  String?
+  skills          String?  // JSON array of sources
+  workingHours    String?
+  lastAssignedAt  DateTime?
+  orderIndex      Int      @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id])
+}
+
+model LeadRouletteLog {
+  id             String   @id @default(uuid())
+  leadId         String
+  leadName       String
+  source         String
+  pipelineStage  String
+  assignedTo     String
+  ruleId         String?
+  assignedAt     DateTime @default(now())
+
+  createdAt      DateTime @default(now())
+
+  @@index([assignedAt])
+  @@index([assignedTo])
+  @@index([ruleId])
+}
+
+// ==========================================
+// REAL ESTATE MANAGEMENT MODULE
+// ==========================================
+
+model Person {
+  id              String   @id @default(uuid())
+  type            String   // OWNER, TENANT, GUARANTOR, SUPPLIER, BROKER
+  name            String
+  socialName      String?
+  document        String?  // CPF/CNPJ
+  documentType    String?  // RG/IE
+  birthDate       DateTime?
+  
+  email           String?
+  phone           String?
+  whatsapp        String?
+  
+  profession      String?
+  income          Float?
+  maritalStatus   String?
+  
+  gender          String?
+  nationality     String?
+
+  address         String?
+  street          String?
+  number          String?
+  complement      String?
+  neighborhood    String?
+  city            String?
+  state           String?
+  zipCode         String?
+  
+  spouseName      String?
+  spouseCpf       String?
+  
+  website         String?
+  secondaryEmail  String?
+
+  
+  notes           String?
+  status          String   @default("active") // active, inactive
+  
+  ownerProfile    OwnerProfile?
+  tenantProfile   TenantProfile?
+  guarantorProfile GuarantorProfile?
+  
+  properties      Property[] @relation("PropertyOwner")
+  contracts       LeaseContract[] @relation("ContractTenant")
+  guarantees      Guarantee[]
+  contractParties ContractParty[]
+  
+  tenantId        String?  // Multi-tenant support
+  
+  createdById     String?
+  creator         User?    @relation("PersonCreator", fields: [createdById], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model OwnerProfile {
+  id              String   @id @default(uuid())
+  personId        String   @unique
+  person          Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  
+  bankName        String?
+  agency          String?
+  account         String?
+  accountType     String?
+  pixKey          String?
+  pixType         String?
+  
+  payoutPreference String? // mensal, por_recebimento, data_fixa
+  payoutDay       Int?
+  
+  adminFee        Float?
+  reserveFund     Float?
+  
+  maintenanceAutoApproveLimit Float?
+  
+  contracts       LeaseContract[]
+  payouts         OwnerPayout[]
+}
+
+model TenantProfile {
+  id              String   @id @default(uuid())
+  personId        String   @unique
+  person          Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  
+  incomeProof     String?
+  score           Int?
+  employer        String?
+  jobTitle        String?
+  admissionDate   DateTime?
+  
+  analysisStatus  String   @default("pending") // pending, approved, rejected
+  
+  emergencyContact String? // JSON
+}
+
+model GuarantorProfile {
+  id              String   @id @default(uuid())
+  personId        String   @unique
+  person          Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  
+  incomeAmount    Float?
+  properties      String? // JSON or description of properties
+  
+  tenantId        String?
+}
+
+model ContractParty {
+  id              String   @id @default(uuid())
+  contractId      String
+  contract        LeaseContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  
+  personId        String
+  person          Person   @relation(fields: [personId], references: [id])
+  
+  role            String   // OWNER, TENANT, GUARANTOR
+  ownershipPercent Float?  // For owners
+  
+  tenantId        String?
+  
+  createdAt       DateTime @default(now())
+}
+
+model LeaseContract {
+  id              String   @id @default(uuid())
+  code            String?
+  
+  propertyId      String
+  property        Property @relation(fields: [propertyId], references: [id])
+  
+  ownerId         String
+  owner           OwnerProfile @relation(fields: [ownerId], references: [id])
+  
+  tenantPersonId  String
+  tenant          Person   @relation("ContractTenant", fields: [tenantPersonId], references: [id])
+  
+  startDate       DateTime
+  endDate         DateTime
+  durationMonths  Int
+  
+  rentValue       Float
+  condoValue      Float?
+  iptuValue       Float?
+  adminFeeValue   Float?
+  insuranceValue  Float?
+  otherCharges    Float?
+  
+  dayDue          Int
+  
+  readjustmentIndex String?
+  readjustmentPeriod Int?     @default(12)
+  readjustmentBaseDate DateTime?
+  
+  penaltyPercent  Float?
+  interestPercentMonthly Float?
+  interestPercentDaily   Float?
+  
+  guaranteeType   String?  // NONE, CAUTION, GUARANTOR, INSURANCE, CAPITALIZATION
+  guaranteeValue  Float?
+  guaranteeDetails String? // JSON
+
+  status          String   @default("draft") // draft, active, pending_signature, ended, terminated
+  
+  guarantee       Guarantee?
+  addendums       ContractAddendum[]
+  invoices        RealEstateInvoice[]
+  inspections     Inspection[]
+  parties         ContractParty[]
+  
+  tenantId        String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model DocumentCenter {
+  id              String   @id @default(uuid())
+  tenantId        String?
+  
+  referenceType   String   // PERSON, CONTRACT, PROPERTY
+  referenceId     String
+  
+  docType         String
+  fileUrl         String
+  
+  status          String   @default("pending") // pending, approved, rejected
+  rejectionReason String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ==========================================
+// SIGNATURE MODULE
+// ==========================================
+
+model SignatureEnvelope {
+  id          String   @id @default(uuid())
+  title       String
+  message     String?
+  status      String   @default("draft") // draft, sent, completed, voided
+  createdById String?
+  tenantId    String?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  documents   SignatureDocument[]
+  recipients  SignatureRecipient[]
+  fields      SignatureField[]
+  events      SignatureEvent[]
+}
+
+model SignatureDocument {
+  id             String   @id @default(uuid())
+  envelopeId     String
+  envelope       SignatureEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  name           String
+  fileUrl        String
+  filePath       String
+  fileSize       Int?
+  pageCount      Int?
+  signedFileUrl  String?
+  signedFilePath String?
+  createdAt      DateTime @default(now())
+
+  fields         SignatureField[]
+}
+
+model SignatureRecipient {
+  id          String   @id @default(uuid())
+  envelopeId  String
+  envelope    SignatureEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  name        String
+  email       String
+  role        String   @default("signer") // signer, cc, approver
+  routingOrder Int    @default(1)
+  status      String   @default("pending") // pending, viewed, signed, declined
+  accessToken String?  @unique
+  signedAt    DateTime?
+  viewedAt    DateTime?
+  createdAt   DateTime @default(now())
+
+  fields      SignatureField[]
+}
+
+model SignatureField {
+  id             String   @id @default(uuid())
+  envelopeId     String
+  documentId     String
+  recipientId    String?
+  envelope       SignatureEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  document       SignatureDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  recipient      SignatureRecipient? @relation(fields: [recipientId], references: [id])
+  type           String   // signature, text, date, initials
+  pageNumber     Int
+  x              Float
+  y              Float
+  width          Float
+  height         Float
+  required       Boolean  @default(true)
+  valueText      String?
+  valueImageUrl  String?
+  valueImagePath String?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model SignatureEvent {
+  id          String   @id @default(uuid())
+  envelopeId  String
+  envelope    SignatureEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  type        String
+  message     String?
+  createdAt   DateTime @default(now())
+}
+
+model SignatureTemplate {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  documentUrl  String?
+  fieldsJson   String?
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model SignatureSettings {
+  id                 String   @id @default("default")
+  defaultSenderName  String?
+  defaultSenderEmail String?
+  reminderDays       Int?
+  expireDays         Int?
+  updatedAt          DateTime @updatedAt
+}
+
+model ContractAddendum {
+  id              String   @id @default(uuid())
+  contractId      String
+  contract        LeaseContract @relation(fields: [contractId], references: [id])
+  
+  type            String
+  description     String?
+  changes         String?
+  effectiveDate   DateTime
+  
+  createdAt       DateTime @default(now())
+}
+
+model Guarantee {
+  id              String   @id @default(uuid())
+  contractId      String   @unique
+  contract        LeaseContract @relation(fields: [contractId], references: [id])
+  
+  type            String
+  value           Float?
+  
+  guarantorId     String?
+  guarantor       Person?  @relation(fields: [guarantorId], references: [id])
+  
+  details         String?
+  status          String   @default("active")
+  
+  tenantId        String?
+}
+
+model RealEstateInvoice {
+  id              String   @id @default(uuid())
+  contractId      String
+  contract        LeaseContract @relation(fields: [contractId], references: [id])
+  
+  referenceMonth  DateTime
+  dueDate         DateTime
+  
+  description     String?
+  
+  amountRent      Float
+  amountCondo     Float?
+  amountIptu      Float?
+  amountExtra     Float?
+  amountDiscount  Float?
+  amountTotal     Float
+  
+  barcode         String?
+  pixCode         String?
+
+  
+  status          String   @default("generated") // generated, sent, paid, overdue, cancelled
+  
+  paidAt          DateTime?
+  paidAmount      Float?
+  paymentMethod   String?
+  
+  tenantId        String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model OwnerPayout {
+  id              String   @id @default(uuid())
+  ownerId         String
+  owner           OwnerProfile @relation(fields: [ownerId], references: [id])
+  
+  referenceDate   DateTime
+  totalReceived   Float
+  feesRetained    Float
+  totalPaid       Float
+  
+  status          String   @default("pending")
+  paidAt          DateTime?
+  
+  createdAt       DateTime @default(now())
+  
+  tenantId        String?
+}
+
+model MaintenanceTicket {
+  id              String   @id @default(uuid())
+  propertyId      String
+  property        Property @relation(fields: [propertyId], references: [id])
+  
+  description     String
+  type            String
+  category        String?
+  priority        String
+  status          String   @default("open")
+  
+  photos          String?  @default("[]")
+  estimatedCost   Float?
+  assignedTo      String?
+  scheduledDate   DateTime?
+
+  tenantId        String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Inspection {
+  id              String   @id @default(uuid())
+  propertyId      String
+  property        Property @relation(fields: [propertyId], references: [id])
+  contractId      String?
+  contract        LeaseContract? @relation(fields: [contractId], references: [id])
+  
+  type            String
+  date            DateTime
+  status          String   @default("scheduled")
+  inspectorName   String?
+  notes           String?
+  photos          String?  @default("[]")
+  checklist       String?  @default("[]")
+  reportUrl       String?
+
+  tenantId        String?
+  
+  createdAt       DateTime @default(now())
+}
+
+model AuditLog {
+  id              String   @id @default(uuid())
+  entityType      String   // Contract, Person, etc.
+  entityId        String
+  action          String   // create, update, delete, status_change
+  
+  beforeData      String?  // JSON
+  afterData       String?  // JSON
+  
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  
+  tenantId        String?
+
+  createdAt       DateTime @default(now())
+}
+
+model PipelineConfig {
+  id        String   @id
+  payload   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
