@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { CheckCircle2, Plus, Sparkles } from 'lucide-react';
 import { SaaSPlan, saasModules, saasPlans } from './adminSaasMockData';
 
@@ -19,9 +19,21 @@ const formatCurrency = (value: number) =>
   value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
 const AdminPlans: React.FC = () => {
-  const [plans, setPlans] = useState<SaaSPlan[]>([...saasPlans]);
+  const [plans, setPlans] = useState<SaaSPlan[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+
+  const loadPlans = async () => {
+    try {
+      const res = await fetch('/api/saas/plans');
+      const data = await res.json();
+      setPlans(data);
+    } catch(err) { console.error('Error fetching plans', err); }
+  };
+
+  useEffect(() => {
+    loadPlans();
+  }, []);
   const [formState, setFormState] = useState<PlanFormState>({
     name: '',
     description: '',
@@ -92,9 +104,8 @@ const AdminPlans: React.FC = () => {
     });
   };
 
-  const handleSave = () => {
-    const payload: SaaSPlan = {
-      id: editingPlanId ?? `plan-${Date.now()}`,
+  const handleSave = async () => {
+    const payload = {
       name: formState.name,
       description: formState.description,
       priceMonthly: Number(formState.priceMonthly),
@@ -107,13 +118,25 @@ const AdminPlans: React.FC = () => {
       isRecommended: formState.isRecommended
     };
 
-    setPlans(prev => {
+    try {
       if (editingPlanId) {
-        return prev.map(plan => (plan.id === editingPlanId ? payload : plan));
+        await fetch(`/api/saas/plans/${editingPlanId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        await fetch('/api/saas/plans', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
       }
-      return [payload, ...prev];
-    });
-    setIsModalOpen(false);
+      await loadPlans();
+      setIsModalOpen(false);
+    } catch(err) {
+      console.error('Error saving plan', err);
+    }
   };
 
   return (

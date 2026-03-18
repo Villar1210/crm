@@ -78,6 +78,8 @@ import settingsRoutes from './routes/settingsRoutes';
 app.use('/api/settings', settingsRoutes);
 import userRoutes from './routes/userRoutes';
 app.use('/api/users', userRoutes);
+import saasRoutes from './routes/saasRoutes';
+app.use('/api/saas', saasRoutes);
 
 // Health Check
 app.get('/api/health', (_req, res) => {
