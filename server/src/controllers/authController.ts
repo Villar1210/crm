@@ -4,11 +4,28 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-123';
+
+if (!process.env.JWT_SECRET) {
+    console.error('FATAL: JWT_SECRET environment variable is not set. Refusing to start.');
+    process.exit(1);
+}
+const JWT_SECRET = process.env.JWT_SECRET;
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const register = async (req: Request, res: Response) => {
     try {
         const { name, email, password, role } = req.body;
+
+        if (!email || !EMAIL_REGEX.test(email)) {
+            return res.status(400).json({ error: 'Email inválido' });
+        }
+        if (!password || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+            return res.status(400).json({ error: 'Senha deve ter no mínimo 8 caracteres, uma letra maiúscula e um número' });
+        }
+        if (!name || name.trim().length < 2) {
+            return res.status(400).json({ error: 'Nome inválido' });
+        }
 
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
@@ -35,23 +52,28 @@ export const register = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
-        console.log(`[Auth] Login attempt for: ${email}`);
+
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email e senha são obrigatórios' });
+        }
+
+        console.log('[Auth] Login attempt');
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
-            console.warn(`[Auth] User not found: ${email}`);
+            console.warn('[Auth] Login failed: user not found');
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         const isValid = await bcrypt.compare(password, user.password);
         if (!isValid) {
-            console.warn(`[Auth] Invalid password for: ${email}`);
+            console.warn(`[Auth] Login failed for user id: ${user.id}`);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        console.log(`[Auth] Login successful: ${email} (${user.role})`);
+        console.log(`[Auth] Login successful for user id: ${user.id} (${user.role})`);
 
-        const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
+        const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
 
         res.json({
             token,

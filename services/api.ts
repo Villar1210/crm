@@ -79,11 +79,9 @@ export class ApiClient {
 // Adapter to maintain compatibility with existing components
 export const api = {
   auth: {
-    login: async (email: string, password?: string): Promise<User> => {
-      // Old simulation accepted only email, new one needs password.
-      // If password is missing (legacy calls), we might fail or use a default if dev.
-      const effectivePassword = password || '123456';
-      const response = await ApiClient.post<{ token: string; user: User }>('/auth/login', { email, password: effectivePassword }, false);
+    login: async (email: string, password: string): Promise<User> => {
+      if (!password) throw new Error('Senha é obrigatória');
+      const response = await ApiClient.post<{ token: string; user: User }>('/auth/login', { email, password }, false);
       localStorage.setItem('token', response.token);
       localStorage.setItem('novamorada_user', JSON.stringify(response.user)); // Keep old key for compatibility if needed, or migrate
       return response.user;

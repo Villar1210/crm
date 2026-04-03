@@ -21,7 +21,27 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ storage });
+const ALLOWED_MIME_TYPES = [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain',
+];
+
+const upload = multer({
+    storage,
+    limits: { fileSize: 15 * 1024 * 1024 }, // 15MB por arquivo
+    fileFilter: (_req, file, cb) => {
+        if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error(`Tipo de arquivo não permitido: ${file.mimetype}`));
+        }
+    },
+});
 
 router.get('/', getLeads);
 router.delete('/', deleteAllLeads); // Bulk delete by ownerId

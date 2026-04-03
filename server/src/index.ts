@@ -31,12 +31,40 @@ whatsappService.attachSocketID(io);
 const BASE_PORT = Number(process.env.PORT) || 3001;
 const MAX_PORT_ATTEMPTS = Number(process.env.PORT_RETRY_ATTEMPTS) || 5;
 
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3001')
+    .split(',')
+    .map(o => o.trim());
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin) {
+            if (process.env.NODE_ENV === 'production') return callback(new Error('Origin required in production'));
+            return callback(null, true);
+        }
+        if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+        return callback(new Error(`CORS: origin '${origin}' not allowed`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use((_req, res, next) => {
-    // Allow embedding CRM in WhatsApp Web extension iframe.
-    res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://web.whatsapp.com");
+    res.setHeader('Content-Security-Policy',
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline'; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data: https:; " +
+        "font-src 'self' data:; " +
+        "connect-src 'self' https://graph.facebook.com https://api.linkedin.com wss:; " +
+        "frame-ancestors 'self' https://web.whatsapp.com"
+    );
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     next();
 });
 
