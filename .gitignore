@@ -27,3 +27,21 @@ certs/
 # Arquivos pesados e de dados
 *.csv
 *.zip
+
+# Environment variables - NUNCA commite
+.env
+.env.local
+.env.*.local
+server/.env
+
+# WhatsApp Web.js — sessão do browser (gerada automaticamente)
+server/whatsapp-auth/
+server/.wwebjs_auth/
+server/.wwebjs_cache/
+
+# Uploads gerados em runtime
+server/uploads/
+
+# Banco de dados SQLite local
+server/prisma/dev.db
+server/prisma/dev.db-journal
