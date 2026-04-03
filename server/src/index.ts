@@ -37,10 +37,8 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,h
 
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin) {
-            if (process.env.NODE_ENV === 'production') return callback(new Error('Origin required in production'));
-            return callback(null, true);
-        }
+        // Requests sem origin (curl, server-to-server, mobile) sao sempre permitidos
+        if (!origin) return callback(null, true);
         if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
         return callback(new Error(`CORS: origin '${origin}' not allowed`));
     },
