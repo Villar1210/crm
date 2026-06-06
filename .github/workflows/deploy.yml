@@ -11,18 +11,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout código
         uses: actions/checkout@v4
 
-      # ── 2. Node.js ───────────────────────────────────────────────────────────
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      # ── 3. Build frontend ────────────────────────────────────────────────────
       - name: Instalar dependências do frontend
         run: npm ci
 
@@ -31,7 +28,6 @@ jobs:
         env:
           VITE_API_URL: https://ivillar.com.br/api
 
-      # ── 4. Build backend ─────────────────────────────────────────────────────
       - name: Instalar dependências do backend
         run: npm install
         working-directory: ./server
@@ -40,7 +36,6 @@ jobs:
         run: npm run build
         working-directory: ./server
 
-      # ── 5. Deploy via SSH ─────────────────────────────────────────────────────
       - name: Deploy na VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -54,14 +49,17 @@ jobs:
             # Frontend
             cd /var/www/ivillar.com.br
             echo "→ Atualizando código frontend..."
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
             # Backend
-            cd /var/www/crm/server
+            cd /var/www/crm
             echo "→ Atualizando backend..."
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
             echo "→ Instalando dependências do backend..."
+            cd /var/www/crm/server
             npm install --production
 
             echo "→ Compilando TypeScript..."
@@ -73,12 +71,10 @@ jobs:
             echo "→ Reiniciando processos PM2..."
             pm2 restart ivillar-crm
             pm2 restart crm-backend
-
             pm2 save
 
             echo "=== Deploy concluído com sucesso! ==="
 
-      # ── 6. Notificação ───────────────────────────────────────────────────────
       - name: Status do deploy
         if: always()
         run: |
