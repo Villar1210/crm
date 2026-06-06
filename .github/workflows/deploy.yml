@@ -73,6 +73,9 @@ jobs:
             pm2 restart crm-backend
             pm2 save
 
+            echo "→ Recarregando Nginx..."
+            systemctl reload nginx
+
             echo "=== Deploy concluído com sucesso! ==="
 
       - name: Status do deploy

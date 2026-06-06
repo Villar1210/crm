@@ -1,6 +1,6 @@
 
 import React, { lazy, Suspense } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import AdminLayout from './components/AdminLayout';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -76,7 +76,7 @@ import CampaignWizard from './pages/admin/emailMarketing/CampaignWizard';
 const App: React.FC = () => {
   return (
     <ThemeProvider>
-      <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <BrowserRouter>
         <Routes>
           {/* Linktree Funnel (Special Route) */}
           <Route path="/funnel" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><FunnelLinkTree /></Suspense>} />
@@ -165,7 +165,7 @@ const App: React.FC = () => {
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </HashRouter>
+      </BrowserRouter>
     </ThemeProvider>
   );
 };
