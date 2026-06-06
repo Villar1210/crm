@@ -24,7 +24,7 @@ const server = http.createServer(app);
 socketService.init(server);
 const io = socketService.getIO();
 
-whatsappService.attachSocketID(io);
+whatsappService.init(io);
 
 
 // const prisma = new PrismaClient();

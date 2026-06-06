@@ -173,7 +173,7 @@ async function connect() {
     state.socket = sock;
 
     // ── QR Code ────────────────────────────────────────────────────────────────
-    sock.ev.on('connection.update', async (update) => {
+    sock.ev.on('connection.update', async (update: any) => {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
@@ -320,7 +320,7 @@ async function connect() {
     });
 
     // ── Armazena mensagens recebidas/enviadas ──────────────────────────────────
-    sock.ev.on('messages.upsert', ({ messages, type }) => {
+    sock.ev.on('messages.upsert', ({ messages, type }: { messages: any[], type: string }) => {
         if (type !== 'notify' && type !== 'append') return;
 
         for (const msg of messages) {
