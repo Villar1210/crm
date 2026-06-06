@@ -92,20 +92,21 @@ const AdminLayout: React.FC = () => {
         return (
             <Link
                 to={to}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all mb-1 group relative ${active
-                    ? 'bg-[#EAF3FF]'
-                    : 'hover:bg-gray-200'
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 mb-0.5 group relative ${active
+                    ? 'bg-brand-50 shadow-sm'
+                    : 'hover:bg-gray-100'
                     }`}
             >
                 <div className={`
-            w-9 h-9 rounded-full flex items-center justify-center transition-colors flex-shrink-0
-            ${active ? 'text-brand-600' : 'text-brand-600/80 group-hover:text-brand-700'}
+            w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0
+            ${active ? 'bg-brand-600 text-white shadow-brand' : 'text-gray-500 group-hover:text-brand-600 group-hover:bg-brand-50'}
         `}>
-                    <Icon className={`w-6 h-6 ${active ? 'fill-brand-600' : ''}`} />
+                    <Icon className="w-4 h-4" />
                 </div>
-                <span className={`font-medium text-sm truncate transition-opacity duration-300 ${showLeftSidebar ? 'opacity-100' : 'opacity-0 md:hidden'} ${active ? 'text-brand-900 font-bold' : 'text-gray-700'}`}>
+                <span className={`font-medium text-sm truncate transition-opacity duration-200 ${showLeftSidebar ? 'opacity-100' : 'opacity-0 md:hidden'} ${active ? 'text-brand-800 font-semibold' : 'text-gray-600'}`}>
                     {label}
                 </span>
+                {active && <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-brand-500" />}
             </Link>
         );
     };
@@ -114,15 +115,14 @@ const AdminLayout: React.FC = () => {
     const HeaderTab = ({ to, icon: Icon, activeCheck }: { to: string, icon: any, activeCheck: boolean }) => (
         <Link
             to={to}
-            className={`flex-1 md:flex-none h-full flex items-center justify-center px-4 md:px-10 border-b-[3px] transition-all relative group ${activeCheck
-                ? 'border-brand-600 text-brand-600'
-                : 'border-transparent text-gray-500 hover:bg-gray-100 rounded-lg md:rounded-none md:hover:bg-transparent md:hover:bg-gray-50'
+            className={`flex-1 md:flex-none h-full flex items-center justify-center px-4 md:px-8 border-b-2 transition-all duration-150 relative group ${activeCheck
+                ? 'border-brand-500 text-brand-600 bg-brand-50/50'
+                : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50/80'
                 }`}
         >
-            <Icon className={`w-7 h-7 ${activeCheck ? 'fill-brand-600' : ''}`} />
-            {/* Tooltip on Hover */}
-            <div className="absolute -bottom-12 opacity-0 group-hover:opacity-100 bg-gray-800 text-white text-xs px-2 py-1 rounded transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                Ir para {to.replace('/admin', '').replace('/', '') || 'Início'}
+            <Icon className={`w-6 h-6 ${activeCheck ? '' : ''}`} />
+            <div className="absolute -bottom-10 opacity-0 group-hover:opacity-100 bg-gray-800 text-white text-xs px-2.5 py-1.5 rounded-lg transition-opacity duration-150 pointer-events-none whitespace-nowrap z-50 shadow-lg">
+                {to.replace('/admin', '').replace('/', '') || 'Início'}
             </div>
         </Link>
     );
@@ -135,10 +135,10 @@ const AdminLayout: React.FC = () => {
 
 
     return (
-        <div className="min-h-screen bg-[#F0F2F5] font-sans flex flex-col overflow-hidden">
+        <div className="min-h-screen bg-surface-100 font-sans flex flex-col overflow-hidden">
 
             {/* --- HEADER (Facebook Style) --- */}
-            <header className="h-14 bg-white shadow-sm fixed top-0 w-full z-50 flex items-center justify-between px-4">
+            <header className="h-14 bg-white/90 backdrop-blur-md border-b border-gray-100 fixed top-0 w-full z-50 flex items-center justify-between px-4 shadow-sm">
 
                 {/* Left: Logo & Search */}
                 <div className="flex items-center gap-2 md:w-[300px]">
@@ -152,8 +152,8 @@ const AdminLayout: React.FC = () => {
                     </button>
 
                     <Link to="/admin" className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-brand-600 rounded-full flex items-center justify-center text-white">
-                            <Building className="w-6 h-6 fill-white" />
+                        <div className="w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center text-white shadow-brand">
+                            <Building className="w-5 h-5" />
                         </div>
                     </Link>
                     <div className="relative hidden lg:block ml-2">
@@ -181,13 +181,13 @@ const AdminLayout: React.FC = () => {
                     {/* Right Sidebar Toggle (Grid Icon) */}
                     <button
                         onClick={() => setShowRightSidebar(!showRightSidebar)}
-                        className={`hidden md:flex w-10 h-10 rounded-full items-center justify-center transition-colors text-black relative ${!showRightSidebar ? 'bg-gray-200' : 'bg-[#E4E6EB] hover:bg-[#D8DADF]'}`}
+                        className={`hidden md:flex w-9 h-9 rounded-xl items-center justify-center transition-colors text-gray-600 relative ${!showRightSidebar ? 'bg-brand-100 text-brand-600' : 'hover:bg-gray-100'}`}
                         title={showRightSidebar ? "Ocultar Mural" : "Mostrar Mural"}
                     >
                         <Grid className="w-5 h-5" />
                     </button>
 
-                    <button className="w-10 h-10 bg-[#E4E6EB] hover:bg-[#D8DADF] rounded-full flex items-center justify-center transition-colors text-black relative">
+                    <button className="w-9 h-9 hover:bg-gray-100 rounded-xl flex items-center justify-center transition-colors text-gray-600 relative">
                         <Bell className="w-5 h-5 fill-black" />
                         {pendingCount > 0 && <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center border-2 border-white">{pendingCount > 9 ? "9+" : pendingCount}</span>}
                     </button>
@@ -219,7 +219,7 @@ const AdminLayout: React.FC = () => {
 
                 {/* LEFT SIDEBAR (Tools) */}
                 <aside className={`
-            fixed md:static inset-y-0 left-0 z-40 bg-[#F0F2F5] md:bg-transparent overflow-y-auto custom-scrollbar transform transition-all duration-300 ease-in-out
+            fixed md:static inset-y-0 left-0 z-40 bg-surface-100 md:bg-transparent overflow-y-auto custom-scrollbar transform transition-all duration-300 ease-in-out
             ${isMobileMenuOpen ? 'translate-x-0 bg-white shadow-2xl pt-14 w-[280px]' : '-translate-x-full md:translate-x-0'}
             ${showLeftSidebar ? 'md:w-[280px]' : 'md:w-0 md:opacity-0 md:overflow-hidden'}
             p-4 hover:overflow-y-auto
@@ -243,7 +243,7 @@ const AdminLayout: React.FC = () => {
                         <hr className="border-gray-300 my-2 mx-3" />
 
                         <div className="px-3 mb-1 mt-2 flex justify-between items-center group cursor-pointer">
-                            <span className="text-[14px] font-semibold text-gray-500 group-hover:text-gray-700">Comunicação</span>
+                            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-gray-500">Comunicação</span>
                         </div>
                         <NavItem to="/admin/whatsapp" icon={Zap} label="WhatsApp Marketing" />
                         <NavItem to="/admin/email-marketing" icon={Mail} label="Email Marketing" />
@@ -253,7 +253,7 @@ const AdminLayout: React.FC = () => {
                         <hr className="border-gray-300 my-2 mx-3" />
 
                         <div className="px-3 mb-1 mt-2 flex justify-between items-center group cursor-pointer">
-                            <span className="text-[14px] font-semibold text-gray-500 group-hover:text-gray-700">Utilitários</span>
+                            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Utilitários</span>
                         </div>
                         <NavItem to="/admin/pdf-tools" icon={FileText} label="Ferramentas PDF" />
                         <NavItem to="/admin/assinaturas" icon={PenTool} label="Assinaturas eDocs" />
@@ -263,7 +263,7 @@ const AdminLayout: React.FC = () => {
                             <>
                                 <hr className="border-gray-300 my-2 mx-3" />
                                 <div className="px-3 mb-1 mt-2">
-                                    <span className="text-[14px] font-semibold text-gray-500">Administração</span>
+                                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Administração</span>
                                 </div>
                                 {isSuperAdmin && (
                                     <NavItem to="/admin/saas" icon={PanelLeft} label="Admin Geral (SaaS)" />
@@ -278,7 +278,7 @@ const AdminLayout: React.FC = () => {
                     </div>
 
                     <div className="mt-8 px-3 text-xs text-gray-500 min-w-[250px]">
-                        <p>Ivillar System © {new Date().getFullYear()}</p>
+                        <p className="font-semibold text-gray-500">Ivillar CRM</p><p className="text-gray-400">© {new Date().getFullYear()} · v2.0</p>
                         <div className="flex gap-2 mt-1 flex-wrap">
                             <a href="#" className="hover:underline">Privacidade</a> •
                             <a href="#" className="hover:underline">Termos</a> •
