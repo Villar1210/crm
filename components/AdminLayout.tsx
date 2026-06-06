@@ -20,24 +20,38 @@ const AdminLayout: React.FC = () => {
 
     // Mobile Menu State
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [pendingCount, setPendingCount] = useState(0);
+
+    useEffect(() => {
+        // Buscar tarefas atrasadas para o badge de notificação
+        const fetchPending = async () => {
+            try {
+                const tasks = await api.tasks.list({ completed: 'false' });
+                const overdue = tasks.filter((t: any) => new Date(t.dueDate) < new Date());
+                setPendingCount(overdue.length);
+            } catch { /* silencioso */ }
+        };
+        fetchPending();
+        const interval = setInterval(fetchPending, 5 * 60_000); // atualiza a cada 5min
+        return () => clearInterval(interval);
+    }, []);
 
     // Desktop Sidebar States (Toggles)
     const [showLeftSidebar, setShowLeftSidebar] = useState(true);
     const [showRightSidebar, setShowRightSidebar] = useState(true);
 
-    // Simulação de Notícias do "Mini-Blog" (Mural da Empresa)
-    const systemNews = [
-        { id: 1, title: 'Meta do Mês Batida! 🚀', content: 'Parabéns ao time de vendas, alcançamos 110% da meta de Março.', date: '2h atrás', author: 'Diretoria' },
-        { id: 2, title: 'Novo Empreendimento', content: 'O material do "Horizon Residence" já está disponível na pasta de arquivos.', date: '5h atrás', author: 'Marketing' },
-        { id: 3, title: 'Manutenção no Sistema', content: 'O CRM passará por atualização nesta sexta às 23h.', date: '1d atrás', author: 'Tech' },
-    ];
+    const [teamUsers, setTeamUsers] = useState<any[]>([]);
 
-    // Simulação de Contatos Online
-    const onlineContacts = [
-        { id: 'u1', name: 'Daniel Villar', avatar: 'https://i.pravatar.cc/150?u=admin', status: 'online' },
-        { id: 'u2', name: 'Eduardo Santos', avatar: 'https://i.pravatar.cc/150?u=eduardo', status: 'online' },
-        { id: 'u3', name: 'Camila Torres', avatar: 'https://i.pravatar.cc/150?u=camila', status: 'busy' },
-    ];
+    useEffect(() => {
+        // Buscar usuários reais da equipe
+        const fetchTeam = async () => {
+            try {
+                const users = await api.users.getAll();
+                setTeamUsers(users.slice(0, 6));
+            } catch { /* silencioso */ }
+        };
+        if (isAdmin) fetchTeam();
+    }, [isAdmin]);
 
     useEffect(() => {
         // We rely on AuthContext for current user state
@@ -175,7 +189,7 @@ const AdminLayout: React.FC = () => {
 
                     <button className="w-10 h-10 bg-[#E4E6EB] hover:bg-[#D8DADF] rounded-full flex items-center justify-center transition-colors text-black relative">
                         <Bell className="w-5 h-5 fill-black" />
-                        <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center border-2 border-white">3</span>
+                        {pendingCount > 0 && <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center border-2 border-white">{pendingCount > 9 ? "9+" : pendingCount}</span>}
                     </button>
 
                     {/* Profile Dropdown Trigger */}
@@ -264,7 +278,7 @@ const AdminLayout: React.FC = () => {
                     </div>
 
                     <div className="mt-8 px-3 text-xs text-gray-500 min-w-[250px]">
-                        <p>Ivillar System © 2025</p>
+                        <p>Ivillar System © {new Date().getFullYear()}</p>
                         <div className="flex gap-2 mt-1 flex-wrap">
                             <a href="#" className="hover:underline">Privacidade</a> •
                             <a href="#" className="hover:underline">Termos</a> •
@@ -323,24 +337,22 @@ const AdminLayout: React.FC = () => {
                             </div>
 
                             <div className="space-y-1">
-                                {onlineContacts.map(contact => (
-                                    <div key={contact.id} className="flex items-center gap-3 p-2 hover:bg-gray-200 rounded-lg cursor-pointer transition-colors">
+                                {teamUsers.length > 0 ? teamUsers.map((u: any) => (
+                                    <div key={u.id} className="flex items-center gap-3 p-2 hover:bg-gray-200 rounded-lg cursor-pointer transition-colors">
                                         <div className="relative">
-                                            <img src={contact.avatar} className="w-9 h-9 rounded-full border border-gray-200" alt={contact.name} />
-                                            <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[#F0F2F5] rounded-full ${contact.status === 'online' ? 'bg-green-500' : 'bg-amber-500'}`}></div>
+                                            <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-sm font-bold border border-gray-200">
+                                                {u.name?.charAt(0)?.toUpperCase() || '?'}
+                                            </div>
+                                            <div className="absolute bottom-0 right-0 w-3 h-3 border-2 border-[#F0F2F5] rounded-full bg-green-500"></div>
                                         </div>
-                                        <span className="text-sm font-medium text-gray-900">{contact.name}</span>
+                                        <div>
+                                            <span className="text-sm font-medium text-gray-900">{u.name}</span>
+                                            <p className="text-xs text-gray-400 capitalize">{u.role}</p>
+                                        </div>
                                     </div>
-                                ))}
-
-                                {/* Fake extra contacts for visual fill */}
-                                <div className="flex items-center gap-3 p-2 hover:bg-gray-200 rounded-lg cursor-pointer transition-colors opacity-60">
-                                    <div className="relative">
-                                        <div className="w-9 h-9 rounded-full bg-gray-300"></div>
-                                        <div className="absolute bottom-0 right-0 w-3 h-3 border-2 border-[#F0F2F5] rounded-full bg-gray-400"></div>
-                                    </div>
-                                    <span className="text-sm font-medium text-gray-900">Roberto Lima</span>
-                                </div>
+                                )) : (
+                                    <p className="text-xs text-gray-400 px-2">Nenhum usuário encontrado</p>
+                                )}
                             </div>
                         </div>
                     </div>

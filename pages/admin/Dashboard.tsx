@@ -1,395 +1,422 @@
-
-
-import React, { useEffect, useState, useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Cell, PieChart, Pie } from 'recharts';
-import { TrendingUp, Users, DollarSign, Target, Activity, Award, ArrowUpRight, ArrowDownRight, Megaphone, Home, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, PieChart, Pie, Cell
+} from 'recharts';
+import {
+  TrendingUp, TrendingDown, Users, DollarSign, Target, Activity,
+  Award, ArrowUpRight, ArrowDownRight, Flame, Snowflake, Zap,
+  CheckCircle, AlertCircle, RefreshCw, Calendar, MessageSquare
+} from 'lucide-react';
 import { api } from '../../services/api';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { MOCK_DASHBOARD_DATA, DEFAULT_PIPELINE } from '../../constants';
-import { User, Pipeline } from '../../types';
+
+const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const fmtK = (v: number) => v >= 1_000_000 ? `R$${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `R$${(v / 1_000).toFixed(0)}k` : fmt(v);
+
+const KPI: React.FC<{
+  label: string; value: string; sub?: string;
+  trend?: number; icon: React.FC<any>; color: string;
+}> = ({ label, value, sub, trend, icon: Icon, color }) => (
+  <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+    <div className="flex items-start justify-between mb-3">
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      {trend !== undefined && (
+        <span className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${
+          trend >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+        }`}>
+          {trend >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+          {Math.abs(trend)}%
+        </span>
+      )}
+    </div>
+    <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+    <p className="text-xs text-gray-500 font-medium mt-0.5">{label}</p>
+    {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+  </div>
+);
 
 const AdminDashboard: React.FC = () => {
-  // Hardcode removal of mock data until confirmed clean
-  const [data, setData] = useState<typeof MOCK_DASHBOARD_DATA | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [pipelines] = useState<Pipeline[]>([DEFAULT_PIPELINE]); // In future fetch from API
-  const [selectedPipelineId, setSelectedPipelineId] = useState<string>(DEFAULT_PIPELINE.id);
-  const [defaultDashboardPipelineId, setDefaultDashboardPipelineId] = useState<string>(DEFAULT_PIPELINE.id);
-
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  useEffect(() => {
-    // Update time every minute
-    const timer = setInterval(() => {
-      setCurrentDate(new Date());
-    }, 60000);
+  const user = api.auth.getCurrentUser();
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentDate(new Date()), 60_000);
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    // Load persisted dashboard preference
-    const savedDefault = localStorage.getItem('dashboard_default_pipeline_id');
-    if (savedDefault) {
-      setDefaultDashboardPipelineId(savedDefault);
-      setSelectedPipelineId(savedDefault);
-    }
-  }, []);
-
-  const handleSetDefault = () => {
-    const newDefault = selectedPipelineId;
-    setDefaultDashboardPipelineId(newDefault);
-    localStorage.setItem('dashboard_default_pipeline_id', newDefault);
-  };
-
-  const handlePrevPipeline = () => {
-    const idx = pipelines.findIndex(p => p.id === selectedPipelineId);
-    if (idx > 0) setSelectedPipelineId(pipelines[idx - 1].id);
-    else setSelectedPipelineId(pipelines[pipelines.length - 1].id);
-  };
-
-  const handleNextPipeline = () => {
-    const idx = pipelines.findIndex(p => p.id === selectedPipelineId);
-    if (idx < pipelines.length - 1) setSelectedPipelineId(pipelines[idx + 1].id);
-    else setSelectedPipelineId(pipelines[0].id);
-  };
-
-  const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId) || pipelines[0];
-
-  // Map funnel data based on selected pipeline
-  // If default, use mock. If custom, replicate mock logic or zero.
-  const funnelData = useMemo(() => {
-    if (selectedPipelineId === 'default' && data) return data.funnel;
-
-    // Generate mock data for other pipelines based on stages
-    return selectedPipeline.stages.map((stage, idx) => ({
-      stage: stage.title,
-      count: Math.floor(1000 / ((idx + 1) * 1.5)), // Decay fake data
-      fill: stage.id === 'lost' ? '#ef4444' : stage.id === 'closed' ? '#22c55e' : '#3b82f6' // Simple color logic
-    })).filter(s => s.count > 0);
-  }, [selectedPipeline, data, selectedPipelineId]);
-
-
-  useEffect(() => {
-    const fetchData = async () => {
+  const loadData = async () => {
+    setLoading(true);
+    setError('');
+    try {
       const stats = await api.dashboard.getStats();
-      const currentUser = api.auth.getCurrentUser();
       setData(stats);
-      setUser(currentUser);
-    };
-    fetchData();
-  }, []);
+    } catch (e: any) {
+      setError(e?.message || 'Erro ao carregar dados');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  if (!data || !user) return <div className="flex items-center justify-center h-full text-gray-400">Carregando dados...</div>;
+  useEffect(() => { loadData(); }, []);
 
-  const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center h-64 gap-3">
+      <RefreshCw className="w-8 h-8 text-brand-500 animate-spin" />
+      <p className="text-gray-400 text-sm">Carregando dados do dashboard...</p>
+    </div>
+  );
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center h-64 gap-3">
+      <AlertCircle className="w-8 h-8 text-red-400" />
+      <p className="text-red-500 text-sm">{error}</p>
+      <button onClick={loadData} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm hover:bg-brand-700">
+        Tentar novamente
+      </button>
+    </div>
+  );
+
+  const s = data?.summary || {};
+  const financials = data?.financials || {};
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
+    <div className="space-y-6 pb-12 animate-fade-in">
+
+      {/* Header */}
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-2xl font-serif font-bold text-gray-900">Visão Geral</h2>
-          <p className="text-gray-500 text-sm">Acompanhamento financeiro e operacional em tempo real.</p>
+          <h2 className="text-2xl font-bold text-gray-900">Visão Geral</h2>
+          <p className="text-gray-500 text-sm mt-0.5">Dados em tempo real do seu CRM</p>
         </div>
-        <div className="text-right hidden md:block">
-          <p className="text-xs text-gray-400 font-bold uppercase">Última atualização</p>
-          <p className="font-mono text-gray-700 capitalize">
-            {format(currentDate, "EEEE, HH:mm'h'", { locale: ptBR })}
-          </p>
-        </div>
-      </div>
-
-      {/* Financial KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <DollarSign size={80} className="text-brand-900" />
+        <div className="flex items-center gap-3">
+          <div className="text-right hidden md:block">
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Atualizado</p>
+            <p className="text-sm font-semibold text-gray-700 capitalize">
+              {format(currentDate, "EEE, HH:mm'h'", { locale: ptBR })}
+            </p>
           </div>
-          <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">VGV (Volume Geral de Vendas)</p>
-          <div className="flex items-baseline gap-2">
-            <h3 className="text-2xl font-bold text-gray-900">{data.financials.vgv.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</h3>
-          </div>
-          <div className="flex items-center gap-1 mt-2 text-green-600 text-sm font-medium">
-            <TrendingUp size={16} /> <span>+12.5%</span> <span className="text-gray-400 font-normal">vs mês anterior</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <Target size={80} className="text-green-600" />
-          </div>
-          <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">Comissões Projetadas</p>
-          <div className="flex items-baseline gap-2">
-            <h3 className="text-2xl font-bold text-gray-900">{data.financials.commissions.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</h3>
-          </div>
-          <div className="flex items-center gap-1 mt-2 text-green-600 text-sm font-medium">
-            <ArrowUpRight size={16} /> <span>+8.2%</span> <span className="text-gray-400 font-normal">sobre a meta</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <Users size={80} className="text-blue-600" />
-          </div>
-          <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">Ticket Médio</p>
-          <div className="flex items-baseline gap-2">
-            <h3 className="text-2xl font-bold text-gray-900">{data.financials.avgTicket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</h3>
-          </div>
-          <div className="flex items-center gap-1 mt-2 text-red-500 text-sm font-medium">
-            <ArrowDownRight size={16} /> <span>-2.1%</span> <span className="text-gray-400 font-normal">oscilação normal</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <Activity size={80} className="text-purple-600" />
-          </div>
-          <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">Taxa de Conversão</p>
-          <div className="flex items-baseline gap-2">
-            <h3 className="text-2xl font-bold text-gray-900">{data.financials.conversionRate}%</h3>
-          </div>
-          <div className="flex items-center gap-1 mt-2 text-green-600 text-sm font-medium">
-            <TrendingUp size={16} /> <span>+0.5%</span> <span className="text-gray-400 font-normal">eficiência</span>
-          </div>
+          <button
+            onClick={loadData}
+            className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
+            title="Atualizar"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* KPIs principais */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPI
+          label="Total de Leads"
+          value={String(s.totalLeads || 0)}
+          sub={`${s.leadsThisMonth || 0} este mês`}
+          trend={s.leadsGrowth}
+          icon={Users}
+          color="bg-blue-100 text-blue-600"
+        />
+        <KPI
+          label="VGV Total"
+          value={fmtK(s.vgv || 0)}
+          sub={`${fmtK(s.vgvThisMonth || 0)} este mês`}
+          trend={s.vgvGrowth}
+          icon={DollarSign}
+          color="bg-green-100 text-green-600"
+        />
+        <KPI
+          label="Taxa de Conversão"
+          value={`${s.conversionRate || 0}%`}
+          sub={`Ticket médio ${fmtK(s.avgTicket || 0)}`}
+          icon={Target}
+          color="bg-purple-100 text-purple-600"
+        />
+        <KPI
+          label="Comissões Projetadas"
+          value={fmtK(s.commissions || 0)}
+          sub="5% sobre VGV fechado"
+          icon={TrendingUp}
+          color="bg-amber-100 text-amber-600"
+        />
+      </div>
 
-        {/* Revenue Chart */}
+      {/* KPIs secundários */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center">
+            <Flame className="w-4 h-4 text-red-500" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-gray-900">{s.temperatures?.hot || 0}</p>
+            <p className="text-xs text-gray-500">Leads quentes</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
+            <Snowflake className="w-4 h-4 text-blue-400" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-gray-900">{s.temperatures?.cold || 0}</p>
+            <p className="text-xs text-gray-500">Leads frios</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+            s.overdueTasks > 0 ? 'bg-red-100' : 'bg-green-100'
+          }`}>
+            <AlertCircle className={`w-4 h-4 ${s.overdueTasks > 0 ? 'text-red-500' : 'text-green-500'}`} />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-gray-900">{s.overdueTasks || 0}</p>
+            <p className="text-xs text-gray-500">Tarefas atrasadas</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center">
+            <CheckCircle className="w-4 h-4 text-orange-500" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-gray-900">{s.pendingTasks || 0}</p>
+            <p className="text-xs text-gray-500">Tarefas pendentes</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Gráfico receita + Funil */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="font-bold text-gray-800">Receita vs Meta</h3>
-            <div className="flex gap-2">
-              <span className="flex items-center gap-1 text-xs text-gray-500"><div className="w-2 h-2 rounded-full bg-brand-500"></div> Realizado</span>
-              <span className="flex items-center gap-1 text-xs text-gray-500"><div className="w-2 h-2 rounded-full bg-gray-300"></div> Meta</span>
+          <div className="flex justify-between items-center mb-5">
+            <h3 className="font-bold text-gray-800">Receita vs Meta — Últimos 6 meses</h3>
+            <div className="flex gap-3">
+              <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                <div className="w-3 h-0.5 bg-brand-500 rounded"></div> Realizado
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                <div className="w-3 h-0.5 bg-gray-300 rounded border-dashed"></div> Meta
+              </span>
             </div>
           </div>
-          <div className="h-[20rem]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.financials.revenueData}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} tickFormatter={(val) => `R$${val / 1000}k`} />
-                <Tooltip
-                  formatter={(value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                />
-                <Area type="monotone" dataKey="revenue" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
-                <Area type="monotone" dataKey="target" stroke="#cbd5e1" strokeWidth={2} strokeDasharray="5 5" fill="none" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {financials.revenueData?.some((d: any) => d.revenue > 0) ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={financials.revenueData}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 11 }} tickFormatter={fmtK} />
+                  <Tooltip
+                    formatter={(v: number) => [fmt(v)]}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.15)' }}
+                  />
+                  <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRevenue)" name="Realizado" />
+                  <Area type="monotone" dataKey="target" stroke="#d1d5db" strokeWidth={1.5} strokeDasharray="5 5" fill="none" name="Meta" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex flex-col items-center justify-center gap-2 text-gray-400">
+              <TrendingUp className="w-10 h-10 opacity-30" />
+              <p className="text-sm">Nenhuma venda fechada ainda</p>
+              <p className="text-xs">Dados aparecerão quando leads forem fechados</p>
+            </div>
+          )}
         </div>
 
-        {/* Sales Funnel */}
+        {/* Funil */}
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="font-bold text-gray-800">Funil de Vendas</h3>
-            <div className="flex items-center gap-2">
-              {pipelines.length > 1 && (
-                <button onClick={handlePrevPipeline} className="p-1 hover:bg-gray-100 rounded-full text-gray-500">
-                  <ChevronLeft size={18} />
-                </button>
-              )}
-
-              <div className="flex flex-col items-center">
-                <span className="text-sm font-bold text-gray-700">{selectedPipeline.title}</span>
-              </div>
-
-              {pipelines.length > 1 && (
-                <button onClick={handleNextPipeline} className="p-1 hover:bg-gray-100 rounded-full text-gray-500">
-                  <ChevronRight size={18} />
-                </button>
-              )}
-
-              <div className="w-px h-4 bg-gray-200 mx-2"></div>
-
-              <button
-                onClick={handleSetDefault}
-                className={`p-1 rounded-full transition-colors ${defaultDashboardPipelineId === selectedPipelineId ? 'text-amber-400' : 'text-gray-300 hover:text-amber-400'}`}
-                title={defaultDashboardPipelineId === selectedPipelineId ? "Funil padrão do Dashboard" : "Definir como padrão"}
-              >
-                <Star size={18} fill={defaultDashboardPipelineId === selectedPipelineId ? "currentColor" : "none"} />
-              </button>
+          <h3 className="font-bold text-gray-800 mb-5">Funil de Vendas</h3>
+          {data?.funnel?.length > 0 ? (
+            <div className="space-y-2">
+              {data.funnel.slice(0, 7).map((stage: any, i: number) => {
+                const maxCount = Math.max(...data.funnel.map((s: any) => s.count));
+                const pct = maxCount > 0 ? (stage.count / maxCount) * 100 : 0;
+                return (
+                  <div key={i}>
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span className="truncate max-w-[150px]">{stage.stage}</span>
+                      <span className="font-semibold text-gray-700">{stage.count}</span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${pct}%`, backgroundColor: stage.fill }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-          <div className="h-[20rem] flex flex-col justify-between relative">
-            {funnelData?.map((stage, index) => (
-              <div key={index} className="relative group">
-                <div
-                  className="h-10 rounded-lg flex items-center justify-between px-4 text-white text-sm font-bold shadow-sm transition-all hover:scale-[1.02]"
-                  style={{
-                    width: `${100 - (index * 15)}%`,
-                    backgroundColor: stage.fill,
-                    marginLeft: 'auto',
-                    marginRight: 'auto'
-                  }}
-                >
-                  <span>{stage.stage}</span>
-                  <span>{stage.count}</span>
-                </div>
-              </div>
-            ))}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 hover:opacity-100">
-              {/* Optional overlay info */}
+          ) : (
+            <div className="h-48 flex items-center justify-center text-gray-400 text-sm">
+              Sem dados de funil
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* ADMIN ONLY SECTION: Advanced Analytics */}
+      {/* Admin: Origem leads + Tipos imóvel */}
       {isAdmin && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Lead Sources Chart */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><Megaphone size={20} className="text-brand-600" /> Origem dos Leads</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={data.leadSources}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {data.leadSources.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <h3 className="font-bold text-gray-800 mb-5 flex items-center gap-2">
+              <Zap className="w-5 h-5 text-brand-500" /> Origem dos Leads
+            </h3>
+            {data?.leadSources?.length > 0 ? (
+              <>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={data.leadSources} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={3} dataKey="value">
+                        {data.leadSources.map((e: any, i: number) => (
+                          <Cell key={i} fill={e.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: any) => [`${v}%`]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-wrap gap-3 mt-3">
+                  {data.leadSources.map((s: any, i: number) => (
+                    <div key={i} className="flex items-center gap-1.5 text-xs">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.fill }} />
+                      <span className="text-gray-600 font-medium">{s.name}</span>
+                      <span className="text-gray-400">({s.value}%)</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="h-48 flex items-center justify-center text-gray-400 text-sm">
+                Preencha o campo "origem" nos leads
               </div>
-              <div className="flex flex-wrap gap-4 justify-center mt-4">
-                {data.leadSources.map((source, index) => (
-                  <div key={index} className="flex items-center gap-2 text-xs">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: source.fill }}></div>
-                    <span className="text-gray-600 font-bold">{source.name}</span>
-                    <span className="text-gray-400">({source.value}%)</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
+          </div>
 
-            {/* Property Types Performance */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><Home size={20} className="text-brand-600" /> Desempenho por Tipo</h3>
-              <div className="h-64">
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <h3 className="font-bold text-gray-800 mb-5 flex items-center gap-2">
+              <Target className="w-5 h-5 text-brand-500" /> Interesse por Tipo
+            </h3>
+            {data?.propertyTypes?.length > 0 ? (
+              <div className="h-52">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.propertyTypes} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
                     <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 12 }} />
+                    <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 12 }} />
                     <Tooltip />
-                    <Bar dataKey="value" radius={[0, 10, 10, 0]}>
-                      {data.propertyTypes.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                    <Bar dataKey="value" radius={[0, 8, 8, 0]}>
+                      {data.propertyTypes.map((e: any, i: number) => (
+                        <Cell key={i} fill={e.fill} />
                       ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Top Agents */}
-            <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-gray-800 flex items-center gap-2"><Award className="text-amber-500" size={20} /> Performance de Equipe</h3>
-                <button className="text-brand-600 text-sm font-bold hover:underline">Exportar Relatório</button>
+            ) : (
+              <div className="h-52 flex items-center justify-center text-gray-400 text-sm">
+                Preencha "interesse" nos leads
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Admin: Top agentes + Atividades */}
+      {isAdmin && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <Award className="w-5 h-5 text-amber-500" /> Performance da Equipe
+              </h3>
+            </div>
+            {data?.topAgents?.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-bold">
-                    <tr>
-                      <th className="px-4 py-3 rounded-l-lg">Corretor</th>
-                      <th className="px-4 py-3">VGV (Vendas)</th>
-                      <th className="px-4 py-3">Deals</th>
-                      <th className="px-4 py-3">Perdidos</th>
-                      <th className="px-4 py-3">Tempo Fechamento</th>
-                      <th className="px-4 py-3 text-right rounded-r-lg">Ticket Médio</th>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">#</th>
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Corretor</th>
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">VGV</th>
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fechados</th>
+                      <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Conversão</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {(data.topAgents as any[])
-                      .filter((agent: any) => !['Eduardo Santos', 'Camila Torres', 'Roberto Lima'].includes(agent.name))
-                      .map((agent: any, index: number) => (
-                        <tr key={agent.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-4 flex items-center gap-3">
-                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
-                              {index + 1}
-                            </span>
-                            <img src={agent.avatar} alt="" className="w-8 h-8 rounded-full" />
+                    {data.topAgents.map((agent: any, i: number) => (
+                      <tr key={agent.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="py-3 px-3">
+                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                            i === 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+                          }`}>{i + 1}</span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-xs font-bold flex-shrink-0">
+                              {agent.name.charAt(0).toUpperCase()}
+                            </div>
                             <span className="font-medium text-gray-900">{agent.name}</span>
-                          </td>
-                          <td className="px-4 py-4 font-bold text-gray-700">
-                            {agent.sales.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
-                          </td>
-                          <td className="px-4 py-4">
-                            <span className="inline-block bg-brand-50 text-brand-700 px-2 py-1 rounded text-xs font-bold">
-                              {agent.deals}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-red-500 text-xs font-bold">
-                            {agent.lost}
-                          </td>
-                          <td className="px-4 py-4 text-gray-600 text-xs font-bold">
-                            {(agent as any).avgTime}
-                          </td>
-                          <td className="px-4 py-4 text-right text-sm text-gray-600">
-                            {agent.avgTicket?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
-                          </td>
-                        </tr>
-                      ))}
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 font-semibold text-gray-700">{fmtK(agent.sales)}</td>
+                        <td className="py-3 px-3">
+                          <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full text-xs font-semibold">{agent.deals}</span>
+                        </td>
+                        <td className="py-3 px-3 text-gray-600 text-xs font-semibold">{agent.conversionRate}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
-            </div>
-
-            {/* Recent Activity Feed */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2"><Activity className="text-gray-400" size={20} /> Feed em Tempo Real</h3>
-              <div className="space-y-6">
-                {(data.activities as any[])
-                  .filter((a: any) => !['Eduardo Santos', 'Camila Torres', 'Roberto Lima'].includes(a.user))
-                  .map((activity: any) => (
-                    <div key={activity.id} className="flex gap-3 relative pb-6 last:pb-0 last:mb-0">
-                      {/* Connector Line */}
-                      <div className="absolute left-[0.9375rem] top-8 bottom-0 w-0.5 bg-gray-100 last:hidden"></div>
-
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 z-10 border-2 border-white shadow-sm ${activity.type === 'sale' ? 'bg-green-100 text-green-600' :
-                        activity.type === 'visit' ? 'bg-purple-100 text-purple-600' :
-                          activity.type === 'lead' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
-                        }`}>
-                        {activity.type === 'sale' ? <DollarSign size={14} /> :
-                          activity.type === 'visit' ? <Users size={14} /> :
-                            activity.type === 'lead' ? <Target size={14} /> : <TrendingUp size={14} />}
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-800">
-                          <span className="font-bold">{activity.user}</span> {activity.action} <span className="text-brand-600 font-medium">{activity.target}</span>
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">{activity.time}</p>
-                      </div>
-                    </div>
-                  ))}
+            ) : (
+              <div className="h-32 flex items-center justify-center text-gray-400 text-sm">
+                Atribua leads a corretores para ver a performance
               </div>
-            </div>
+            )}
           </div>
-        </>
+
+          {/* Feed de atividades */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <h3 className="font-bold text-gray-800 mb-5 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-gray-400" /> Atividade Recente
+            </h3>
+            {data?.activities?.length > 0 ? (
+              <div className="space-y-4">
+                {data.activities.slice(0, 6).map((a: any, i: number) => (
+                  <div key={i} className="flex gap-3 items-start">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-800 leading-relaxed">
+                        <span className="font-semibold">{a.target || 'Lead'}</span>
+                        {' '}<span className="text-gray-500">{a.action}</span>
+                      </p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{a.time} · {a.source || 'direto'}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="h-32 flex items-center justify-center text-gray-400 text-sm">
+                Nenhuma atividade ainda
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

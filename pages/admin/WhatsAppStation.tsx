@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
-import { Loader2, Smartphone } from 'lucide-react';
+import { Loader2, Smartphone, CheckCircle, AlertCircle, X } from 'lucide-react';
 
 import { api } from '../../services/api';
 import { WhatsAppLayout } from '../../components/WhatsApp/Layout';
@@ -94,7 +94,7 @@ const WhatsAppStation: React.FC = () => {
         if (success) {
             loadChats(); // Refresh to show sent message
         } else {
-            alert('Falha ao enviar mensagem');
+            showToast('Falha ao enviar mensagem. Verifique a conexão.', 'err');
         }
     };
 
@@ -160,6 +160,12 @@ const WhatsAppStation: React.FC = () => {
     };
 
     const [showConfig, setShowConfig] = useState(false);
+    const [toast, setToast] = useState<{msg: string, type: 'ok'|'err'} | null>(null);
+
+    const showToast = (msg: string, type: 'ok'|'err' = 'ok') => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 3500);
+    };
 
     // --- RENDER: MAIN INTERFACE ---
     return (
@@ -236,6 +242,17 @@ const WhatsAppStation: React.FC = () => {
                 currentMode={integrationMode}
                 onSave={handleSaveMode}
             />
+            {toast && (
+                <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white ${
+                    toast.type === 'ok' ? 'bg-green-600' : 'bg-red-600'
+                }`}>
+                    {toast.type === 'ok' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                    {toast.msg}
+                    <button onClick={() => setToast(null)} className="ml-1 opacity-70 hover:opacity-100">
+                        <X className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            )}
         </>
     );
 };
