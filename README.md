@@ -41,3 +41,4 @@ Notes:
 - Meta redirect URI can be reused for Facebook or Instagram. If you connect Facebook, replace the redirect URI with `/api/social/oauth/facebook/callback`.
 - Instagram publishing requires a business or creator account linked to a Facebook page.
 - OAuth + postagem ativa: Facebook, Instagram e LinkedIn. Outros provedores seguem com a UI, mas estao marcados como "Em breve".
+# Deploy automático configurado em 06/06/2026
