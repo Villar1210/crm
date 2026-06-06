@@ -103,8 +103,8 @@ export const api = {
     updateHeroSlide: async (_slide: HeroSlide) => true,
   },
   users: {
-    getAll: async () => [],
-    delete: async (_id: string) => true
+    getAll: async () => ApiClient.get('/users'),
+    delete: async (id: string) => { await ApiClient.delete(`/users/${id}`); return true; }
   },
   user: {
     getFavorites: async (_userId?: string) => []
@@ -148,11 +148,18 @@ export const api = {
   },
   leads: {
     getAll: async () => {
-      const leads = await ApiClient.get<Lead[]>('/leads');
+      const stored = localStorage.getItem('user') || localStorage.getItem('novamorada_user');
+      const user = stored ? JSON.parse(stored) : null;
+      const ownerId = user?.id;
+      const query = ownerId ? `?ownerId=${ownerId}` : '';
+      const leads = await ApiClient.get<Lead[]>(`/leads${query}`);
       return leads;
     },
     create: async (lead: Partial<Lead>) => {
-      return ApiClient.post<Lead>('/leads', lead);
+      const stored = localStorage.getItem('user') || localStorage.getItem('novamorada_user');
+      const user = stored ? JSON.parse(stored) : null;
+      const ownerId = user?.id;
+      return ApiClient.post<Lead>('/leads', { ...lead, ownerId: lead.ownerId || ownerId });
     },
     updateStatus: async (id: string, status: LeadStatus) => {
       await ApiClient.put(`/leads/${id}`, { status });

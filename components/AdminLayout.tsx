@@ -258,6 +258,7 @@ const AdminLayout: React.FC = () => {
                                 <NavItem to="/admin/site-content" icon={LayoutTemplate} label="Gestão do Site" />
                                 <NavItem to="/admin/jobs" icon={Briefcase} label="RH & Vagas" />
                                 <NavItem to="/admin/settings" icon={Settings} label="Configurações" />
+                                <NavItem to="/admin/config" icon={Shield} label="Admin & Recuperação" />
                             </>
                         )}
                     </div>

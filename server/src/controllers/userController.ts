@@ -63,3 +63,33 @@ export const createUser = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Failed to create user' });
     }
 };
+
+// Reset User Password (Admin)
+export const resetUserPassword = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { newPassword } = req.body;
+
+        if (!newPassword || newPassword.length < 8) {
+            return res.status(400).json({ error: 'Senha deve ter no mínimo 8 caracteres' });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await prisma.user.update({ where: { id }, data: { password: hashedPassword } });
+
+        res.json({ success: true, message: 'Senha alterada com sucesso' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to reset password' });
+    }
+};
+
+// Delete User (Admin)
+export const deleteUser = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        await prisma.user.delete({ where: { id } });
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete user' });
+    }
+};

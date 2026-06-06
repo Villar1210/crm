@@ -24,6 +24,7 @@ import AdminCalendar from './pages/admin/Calendar';
 import PropertiesList from './pages/admin/PropertiesList';
 import PropertyForm from './pages/admin/PropertyForm';
 import AdminSettings from './pages/admin/Settings';
+import AdminConfig from './pages/admin/AdminConfig';
 import UsersList from './pages/admin/UsersList';
 import CampaignsList from './pages/admin/CampaignsList';
 import CampaignForm from './pages/admin/CampaignForm';
@@ -156,6 +157,7 @@ const App: React.FC = () => {
               <Route path="relatorios" element={<RealEstateReports />} />
             </Route>
             <Route path="settings" element={<AdminSettings />} />
+            <Route path="config" element={<AdminConfig />} />
           </Route>
 
           {/* Catch all */}
