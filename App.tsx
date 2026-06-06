@@ -12,6 +12,7 @@ import Campaigns from './pages/Campaigns';
 import Jobs from './pages/Jobs';
 import FunnelLinkTree from './pages/FunnelLinkTree';
 import BuyerLogin from './pages/buyer/Login';
+import Register from './pages/Register';
 import BuyerDashboard from './pages/buyer/Dashboard';
 import Contact from './pages/Contact';
 import About from './pages/About';
@@ -92,6 +93,7 @@ const App: React.FC = () => {
             <Route path="advertise" element={<Advertise />} />
             {/* Buyer Area Routes */}
             <Route path="buyer/login" element={<BuyerLogin />} />
+            <Route path="register" element={<Register />} />
             <Route path="buyer/dashboard" element={<BuyerDashboard />} />
           </Route>
 

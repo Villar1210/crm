@@ -15,7 +15,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const register = async (req: Request, res: Response) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, cpf, creci } = req.body;
 
         if (!email || !EMAIL_REGEX.test(email)) {
             return res.status(400).json({ error: 'Email inválido' });
@@ -40,6 +40,8 @@ export const register = async (req: Request, res: Response) => {
                 email,
                 password: hashedPassword,
                 role: role || 'agent',
+                cpf: cpf || null,
+                creci: creci || null,
             },
         });
 

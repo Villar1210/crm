@@ -1,218 +1,513 @@
-import { Client, LocalAuth } from 'whatsapp-web.js';
-import { Server } from 'socket.io';
+import makeWASocket, {
+    DisconnectReason,
+    useMultiFileAuthState,
+    fetchLatestBaileysVersion,
+    makeCacheableSignalKeyStore,
+    WASocket,
+} from '@whiskeysockets/baileys';
+import { Boom } from '@hapi/boom';
+import qrcode from 'qrcode';
+import path from 'path';
 import fs from 'fs';
+import { Server } from 'socket.io';
+import P from 'pino';
 
-const resolveBrowserExecutable = () => {
-    const envCandidates = [
-        process.env.PUPPETEER_EXECUTABLE_PATH,
-        process.env.CHROME_PATH,
-        process.env.GOOGLE_CHROME_SHIM,
-    ].filter(Boolean) as string[];
+// ──────────────────────────────────────────────────────────────────────────────
+// Tipos internos de chat / mensagem
+// ──────────────────────────────────────────────────────────────────────────────
+export interface WAMessage {
+    id: string;
+    body: string;
+    fromMe: boolean;
+    timestamp: number;
+    type: 'chat';
+}
 
-    const programFiles = process.env.PROGRAMFILES || '';
-    const programFilesX86 = process.env['PROGRAMFILES(X86)'] || '';
-    const localAppData = process.env.LOCALAPPDATA || '';
+export interface WAChat {
+    id: string;
+    name: string;
+    phoneNumber: string;
+    lastMessage: string;
+    lastMessageTime: string;
+    unreadCount: number;
+    messages: WAMessage[];
+}
 
-    const windowsCandidates = [
-        `${programFiles}\\Google\\Chrome\\Application\\chrome.exe`,
-        `${programFilesX86}\\Google\\Chrome\\Application\\chrome.exe`,
-        `${localAppData}\\Google\\Chrome\\Application\\chrome.exe`,
-        `${programFiles}\\Microsoft\\Edge\\Application\\msedge.exe`,
-        `${programFilesX86}\\Microsoft\\Edge\\Application\\msedge.exe`,
-        `${localAppData}\\Microsoft\\Edge\\Application\\msedge.exe`,
-    ];
+// ──────────────────────────────────────────────────────────────────────────────
+// Estado global do serviço
+// ──────────────────────────────────────────────────────────────────────────────
+type WAStatus = 'disconnected' | 'connecting' | 'qr_ready' | 'authenticated' | 'ready';
 
-    for (const candidate of [...envCandidates, ...windowsCandidates]) {
-        if (candidate && fs.existsSync(candidate)) {
-            return candidate;
+interface WhatsAppState {
+    socket: WASocket | null;
+    io: Server | null;
+    status: WAStatus;
+    lastQR: string | null;
+    reconnectTimer: NodeJS.Timeout | null;
+    authDir: string;
+    chats: Map<string, WAChat>;
+    contacts: Map<string, string>;    // jid → nome do contato
+    saveTimer: NodeJS.Timeout | null; // debounce para salvar no disco
+}
+
+const STORE_FILE = path.join(process.cwd(), '.wa_store.json');
+const AUTH_DIR   = path.join(process.cwd(), '.wa_auth');
+const logger     = P({ level: 'silent' });
+
+const state: WhatsAppState = {
+    socket: null,
+    io: null,
+    status: 'disconnected',
+    lastQR: null,
+    reconnectTimer: null,
+    authDir: AUTH_DIR,
+    chats: new Map(),
+    contacts: new Map(),
+    saveTimer: null,
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Persistência em arquivo JSON
+// ──────────────────────────────────────────────────────────────────────────────
+function loadStore() {
+    try {
+        if (!fs.existsSync(STORE_FILE)) return;
+        const raw = fs.readFileSync(STORE_FILE, 'utf8');
+        const data = JSON.parse(raw);
+        state.chats    = new Map((data.chats    || []) as [string, WAChat][]);
+        state.contacts = new Map((data.contacts || []) as [string, string][]);
+        console.log(`[WhatsApp] Store carregado: ${state.chats.size} chats, ${state.contacts.size} contatos`);
+    } catch (e) {
+        console.error('[WhatsApp] Erro ao carregar store:', e);
+    }
+}
+
+function saveStore() {
+    if (state.saveTimer) clearTimeout(state.saveTimer);
+    state.saveTimer = setTimeout(() => {
+        try {
+            const data = {
+                chats:    Array.from(state.chats.entries()),
+                contacts: Array.from(state.contacts.entries()),
+            };
+            fs.writeFileSync(STORE_FILE, JSON.stringify(data));
+        } catch (e) {
+            console.error('[WhatsApp] Erro ao salvar store:', e);
         }
+    }, 2_000); // debounce de 2s para não bater disco em loop
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────────────────────────
+function emit(event: string, data?: any) {
+    if (state.io) state.io.emit(event, data);
+}
+
+function setStatus(s: WAStatus) {
+    state.status = s;
+    emit('whatsapp_status', s);
+    console.log(`[WhatsApp] Status: ${s}`);
+}
+
+function scheduleReconnect(delayMs = 10_000) {
+    if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+    state.reconnectTimer = setTimeout(() => {
+        console.log('[WhatsApp] Tentando reconexão...');
+        connect();
+    }, delayMs);
+}
+
+function isFilteredJid(jid: string): boolean {
+    if (!jid) return true;
+    if (jid === 'status@broadcast')    return true;
+    if (jid.endsWith('@newsletter'))   return true;
+    if (jid.endsWith('@broadcast'))    return true;
+    if (jid.endsWith('@lid'))          return true;
+    return false;
+}
+
+function resolveContactName(jid: string, pushName?: string): string {
+    // Prioridade: contato salvo > pushName do Baileys > número formatado
+    const saved = state.contacts.get(jid);
+    if (saved) return saved;
+    if (pushName) return pushName;
+    const phone = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+    if (phone.startsWith('55') && phone.length >= 12) {
+        const ddd = phone.slice(2, 4);
+        const num = phone.slice(4);
+        return `(${ddd}) ${num.length > 8 ? num.slice(0, 5) + '-' + num.slice(5) : num.slice(0, 4) + '-' + num.slice(4)}`;
+    }
+    return phone;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// connect — cria socket Baileys e registra todos os eventos
+// ──────────────────────────────────────────────────────────────────────────────
+async function connect() {
+    if (!fs.existsSync(state.authDir)) {
+        fs.mkdirSync(state.authDir, { recursive: true });
     }
 
-    return '';
-};
+    setStatus('connecting');
 
-let io: Server;
-let client: Client;
-let qrCodeUrl: string = '';
-let isReady = false;
-let lastError: string | null = null;
+    const { state: authState, saveCreds } = await useMultiFileAuthState(state.authDir);
+    const { version } = await fetchLatestBaileysVersion();
 
-const emitError = (message: string) => {
-    lastError = message;
-    if (io) {
-        io.emit('whatsapp_error', { message });
-    }
-};
+    const sock = makeWASocket({
+        version,
+        logger,
+        printQRInTerminal: false,
+        auth: {
+            creds: authState.creds,
+            keys: makeCacheableSignalKeyStore(authState.keys, logger),
+        },
+        browser: ['Ivillar CRM', 'Chrome', '120.0'],
+        connectTimeoutMs: 30_000,
+        retryRequestDelayMs: 2_000,
+        maxMsgRetryCount: 3,
+        qrTimeout: 60_000,
+        syncFullHistory: true,    // necessário para trazer lista completa de contatos
+    });
 
-export const whatsappService = {
-    initialize: (socketIo: Server, forceReset = false) => {
-        console.log('Initializing WhatsApp Client...');
-        io = socketIo;
-        lastError = null;
+    state.socket = sock;
 
-        const authPath = './whatsapp-auth';
+    // ── QR Code ────────────────────────────────────────────────────────────────
+    sock.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect, qr } = update;
 
-        if (forceReset) {
-            console.log('Performing Hard Reset: Deleting Session...');
-            if (fs.existsSync(authPath)) {
-                fs.rmSync(authPath, { recursive: true, force: true });
+        if (qr) {
+            try {
+                const dataUrl = await qrcode.toDataURL(qr, { margin: 2, width: 300 });
+                state.lastQR = dataUrl;
+                setStatus('qr_ready');
+                emit('whatsapp_qr', dataUrl);
+                console.log('[WhatsApp] QR code gerado e emitido');
+            } catch (err) {
+                console.error('[WhatsApp] Erro ao gerar QR:', err);
             }
         }
 
-        const executablePath = resolveBrowserExecutable();
-        if (!executablePath) {
-            const message = 'Browser executable not found. Install Chrome/Edge or set PUPPETEER_EXECUTABLE_PATH.';
-            console.warn(`[WhatsApp] ${message}`);
-            emitError(message);
-            return;
+        if (connection === 'open') {
+            state.lastQR = null;
+            if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+            setStatus('ready');
+            emit('whatsapp_ready');
+            console.log('[WhatsApp] Conectado ao WhatsApp ✓');
         }
-        const puppeteerConfig = {
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--disable-gpu'
-            ],
-            headless: true,
-            timeout: 60000,
-            executablePath,
+
+        if (connection === 'close') {
+            const reason = (lastDisconnect?.error as Boom)?.output?.statusCode;
+            const loggedOut = reason === DisconnectReason.loggedOut;
+
+            console.log(`[WhatsApp] Conexão fechada. Razão: ${reason}`);
+            setStatus('disconnected');
+            emit('whatsapp_disconnected', { reason });
+
+            if (loggedOut) {
+                console.log('[WhatsApp] Sessão encerrada. Limpando credenciais...');
+                clearAuthDir();
+                scheduleReconnect(3_000);
+            } else {
+                scheduleReconnect(8_000);
+            }
+        }
+
+        if ((update as any).isNewLogin) {
+            setStatus('authenticated');
+            emit('whatsapp_authenticated');
+        }
+    });
+
+    // ── Salva credenciais ──────────────────────────────────────────────────────
+    sock.ev.on('creds.update', saveCreds);
+
+    // Utilitário para processar lista de contatos (usado em múltiplos eventos)
+    function syncContacts(contacts: any[]) {
+        let count = 0;
+        for (const c of contacts) {
+            const jid  = c.id || '';
+            const name = c.name || c.notify || '';
+            if (jid && name) {
+                state.contacts.set(jid, name);
+                const chat = state.chats.get(jid);
+                if (chat && chat.name !== name) chat.name = name;
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // Utilitário para processar lista de chats (usado em múltiplos eventos)
+    function syncChats(chats: any[]) {
+        let count = 0;
+        for (const c of chats) {
+            const jid = c.id || '';
+            if (isFilteredJid(jid)) continue;
+            if (state.chats.has(jid)) continue;
+
+            const phone = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+            const name  = resolveContactName(jid);
+            const ts    = c.conversationTimestamp || Math.floor(Date.now() / 1000);
+
+            state.chats.set(jid, {
+                id: jid,
+                name,
+                phoneNumber: phone,
+                lastMessage: '',
+                lastMessageTime: new Date(ts * 1000).toISOString(),
+                unreadCount: c.unreadCount || 0,
+                messages: [],
+            });
+            count++;
+        }
+        return count;
+    }
+
+    // ── 1ª conexão (após scan do QR): messaging-history.set ───────────────────
+    (sock.ev as any).on('messaging-history.set', (data: any) => {
+        const { contacts, chats, isLatest, syncType } = data || {};
+        console.log(`[WhatsApp] messaging-history.set: syncType=${syncType} isLatest=${isLatest} contacts=${Array.isArray(contacts) ? contacts.length : '?'} chats=${Array.isArray(chats) ? chats.length : '?'}`);
+        const cc = Array.isArray(contacts) ? syncContacts(contacts) : 0;
+        const ch = Array.isArray(chats)    ? syncChats(chats)       : 0;
+        console.log(`[WhatsApp] histórico processado: ${cc} contatos novos, ${ch} chats novos`);
+        saveStore();
+        emit('whatsapp_chats_updated');
+    });
+
+    // ── Reconexões: contacts.upsert + chats.upsert ────────────────────────────
+    (sock.ev as any).on('contacts.upsert', (contacts: any[]) => {
+        console.log(`[WhatsApp] contacts.upsert: ${Array.isArray(contacts) ? contacts.length : 0} itens`);
+        const cc = Array.isArray(contacts) ? syncContacts(contacts) : 0;
+        if (cc > 0) {
+            saveStore();
+            emit('whatsapp_contacts_updated');
+        }
+    });
+
+    (sock.ev as any).on('chats.upsert', (chats: any[]) => {
+        console.log(`[WhatsApp] chats.upsert: ${Array.isArray(chats) ? chats.length : 0} itens`);
+        const ch = Array.isArray(chats) ? syncChats(chats) : 0;
+        if (ch > 0) {
+            saveStore();
+            emit('whatsapp_chats_updated');
+        }
+    });
+
+    // ── Atualizações em tempo real ─────────────────────────────────────────────
+    (sock.ev as any).on('contacts.update', (updates: any[]) => {
+        for (const u of updates) {
+            const jid  = u.id || '';
+            const name = u.notify || u.name || '';
+            if (jid && name) {
+                state.contacts.set(jid, name);
+                const chat = state.chats.get(jid);
+                if (chat) chat.name = name;
+            }
+        }
+        saveStore();
+    });
+
+    (sock.ev as any).on('chats.update', (updates: any[]) => {
+        for (const u of updates) {
+            const jid = u.id || '';
+            if (isFilteredJid(jid)) continue;
+            const chat = state.chats.get(jid);
+            if (chat && u.unreadCount !== undefined) {
+                chat.unreadCount = u.unreadCount || 0;
+            }
+        }
+    });
+
+    // ── Armazena mensagens recebidas/enviadas ──────────────────────────────────
+    sock.ev.on('messages.upsert', ({ messages, type }) => {
+        if (type !== 'notify' && type !== 'append') return;
+
+        for (const msg of messages) {
+            if (!msg.message) continue;
+
+            const jid = msg.key.remoteJid || '';
+            if (isFilteredJid(jid)) continue;
+
+            const body =
+                msg.message.conversation ||
+                msg.message.extendedTextMessage?.text ||
+                msg.message.imageMessage?.caption ||
+                msg.message.videoMessage?.caption ||
+                '[mídia]';
+
+            const waMsg: WAMessage = {
+                id: msg.key.id || `${Date.now()}`,
+                body,
+                fromMe: msg.key.fromMe ?? false,
+                timestamp: (msg.messageTimestamp as number) || Math.floor(Date.now() / 1000),
+                type: 'chat',
+            };
+
+            const phone    = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+            const pushName = (msg as any).pushName as string | undefined;
+            const existing = state.chats.get(jid);
+
+            if (existing) {
+                if (!existing.messages.find(m => m.id === waMsg.id)) {
+                    existing.messages.push(waMsg);
+                    existing.lastMessage = body;
+                    existing.lastMessageTime = new Date(waMsg.timestamp * 1000).toISOString();
+                    if (!waMsg.fromMe) existing.unreadCount += 1;
+                    // Atualiza nome se ainda não tem
+                    if (pushName && !state.contacts.has(jid)) {
+                        existing.name = pushName;
+                    }
+                }
+            } else {
+                const name = resolveContactName(jid, pushName);
+                state.chats.set(jid, {
+                    id: jid,
+                    name,
+                    phoneNumber: phone,
+                    lastMessage: body,
+                    lastMessageTime: new Date(waMsg.timestamp * 1000).toISOString(),
+                    unreadCount: waMsg.fromMe ? 0 : 1,
+                    messages: [waMsg],
+                });
+            }
+
+            if (!msg.key.fromMe) {
+                emit('whatsapp_message', { jid, message: waMsg });
+            }
+        }
+
+        saveStore();
+    });
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Limpa diretório de autenticação
+// ──────────────────────────────────────────────────────────────────────────────
+function clearAuthDir() {
+    try {
+        if (fs.existsSync(state.authDir)) {
+            fs.rmSync(state.authDir, { recursive: true, force: true });
+            fs.mkdirSync(state.authDir, { recursive: true });
+        }
+    } catch (e) {
+        console.error('[WhatsApp] Erro ao limpar credenciais:', e);
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Envio de mensagem de texto
+// ──────────────────────────────────────────────────────────────────────────────
+async function sendTextMessage(phone: string, text: string): Promise<boolean> {
+    if (!state.socket || state.status !== 'ready') {
+        console.warn('[WhatsApp] Não conectado. Mensagem não enviada.');
+        return false;
+    }
+    try {
+        const jid  = phone.replace(/\D/g, '') + '@s.whatsapp.net';
+        const sent = await state.socket.sendMessage(jid, { text });
+        console.log(`[WhatsApp] Mensagem enviada para ${jid}`);
+
+        const waMsg: WAMessage = {
+            id: sent?.key?.id || `${Date.now()}`,
+            body: text,
+            fromMe: true,
+            timestamp: Math.floor(Date.now() / 1000),
+            type: 'chat',
         };
 
-        client = new Client({
-            authStrategy: new LocalAuth({ dataPath: './whatsapp-auth' }),
-            puppeteer: puppeteerConfig,
-            webVersionCache: {
-                type: 'remote',
-                remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
-            }
-        });
+        const existing = state.chats.get(jid);
+        if (existing) {
+            existing.messages.push(waMsg);
+            existing.lastMessage = text;
+            existing.lastMessageTime = new Date().toISOString();
+        } else {
+            const phoneClean = phone.replace(/\D/g, '');
+            state.chats.set(jid, {
+                id: jid,
+                name: resolveContactName(jid),
+                phoneNumber: phoneClean,
+                lastMessage: text,
+                lastMessageTime: new Date().toISOString(),
+                unreadCount: 0,
+                messages: [waMsg],
+            });
+        }
 
-        client.on('qr', (qr) => {
-            console.log('QR Code received');
-            qrCodeUrl = qr;
-            io.emit('whatsapp_qr', qr);
-        });
+        saveStore();
+        return true;
+    } catch (err) {
+        console.error('[WhatsApp] Erro ao enviar mensagem:', err);
+        return false;
+    }
+}
 
-        client.on('ready', () => {
-            console.log('Client is ready!');
-            isReady = true;
-            qrCodeUrl = '';
-            lastError = null;
-            io.emit('whatsapp_ready');
-        });
+// ──────────────────────────────────────────────────────────────────────────────
+// Acesso ao store de chats
+// ──────────────────────────────────────────────────────────────────────────────
+function getChats(): WAChat[] {
+    return Array.from(state.chats.values())
+        .sort((a, b) => b.lastMessageTime.localeCompare(a.lastMessageTime));
+}
 
-        client.on('authenticated', () => {
-            console.log('Client authenticated');
-            io.emit('whatsapp_authenticated');
-        });
+function getChatMessages(jid: string): WAMessage[] {
+    return state.chats.get(jid)?.messages ?? [];
+}
 
-        client.on('auth_failure', async (msg) => {
-            console.error('AUTHENTICATION FAILURE', msg);
-            console.log('Triggering Auto-Reset...');
-            await whatsappService.logout();
-            whatsappService.initialize(io, true); // Recursive reset
-        });
+function markAsRead(jid: string) {
+    const chat = state.chats.get(jid);
+    if (chat) { chat.unreadCount = 0; saveStore(); }
+}
 
-        client.on('message', async (msg) => {
-            console.log('MESSAGE RECEIVED', msg.body);
-            io.emit('whatsapp_message', {
-                id: msg.id.id,
-                from: msg.from,
-                body: msg.body,
-                timestamp: msg.timestamp,
-                hasMedia: msg.hasMedia
+// ──────────────────────────────────────────────────────────────────────────────
+// Desconexão manual (logout)
+// ──────────────────────────────────────────────────────────────────────────────
+async function logout() {
+    if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
+    try { if (state.socket) await state.socket.logout(); } catch (_) {}
+    state.socket = null;
+    state.chats.clear();
+    state.contacts.clear();
+    clearAuthDir();
+    try { if (fs.existsSync(STORE_FILE)) fs.unlinkSync(STORE_FILE); } catch (_) {}
+    setStatus('disconnected');
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Export público
+// ──────────────────────────────────────────────────────────────────────────────
+export const whatsappService = {
+    init(io: Server) {
+        state.io = io;
+        loadStore(); // carrega dados persistidos
+        console.log('[WhatsApp] Serviço iniciando...');
+
+        io.on('connection', (socket) => {
+            socket.emit('whatsapp_status', state.status);
+            if (state.lastQR) socket.emit('whatsapp_qr', state.lastQR);
+
+            socket.on('whatsapp_reconnect', () => {
+                console.log('[WhatsApp] Reconexão solicitada via socket');
+                connect();
+            });
+            socket.on('whatsapp_logout', async () => {
+                console.log('[WhatsApp] Logout solicitado via socket');
+                await logout();
             });
         });
 
-        client.initialize().catch((error) => {
-            console.error('WhatsApp client failed to initialize:', error);
-            const message = error instanceof Error ? error.message : 'WhatsApp client failed to initialize.';
-            emitError(message);
-        });
+        connect().catch(err =>
+            console.error('[WhatsApp] Erro ao iniciar conexão:', err)
+        );
     },
 
-    attachSocketID: (socketIo: Server) => {
-        whatsappService.initialize(socketIo);
-    },
-
-    getChats: async () => {
-        if (!isReady) return [];
-        const maxRetries = 3;
-        for (let i = 0; i < maxRetries; i++) {
-            try {
-                const chats = await client.getChats();
-                return chats.map(chat => ({
-                    id: chat.id._serialized,
-                    name: chat.name,
-                    unreadCount: chat.unreadCount,
-                    lastMessage: chat.lastMessage?.body || '',
-                    lastMessageTime: chat.timestamp ? new Date(chat.timestamp * 1000).toISOString() : new Date().toISOString(),
-                    phoneNumber: chat.id.user,
-                    isGroup: chat.isGroup,
-                }));
-            } catch (error) {
-                console.warn(`Attempt ${i + 1} to fetch chats failed:`, error);
-                if (i === maxRetries - 1) {
-                    console.error('Final failure fetching chats:', error);
-                    return [];
-                }
-                await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-        }
-        return [];
-    },
-
-    getChatMessages: async (chatId: string) => {
-        if (!isReady) return [];
-        try {
-            const chat = await client.getChatById(chatId);
-            const messages = await chat.fetchMessages({ limit: 50 });
-            return messages.map(msg => ({
-                id: msg.id.id,
-                from: msg.from,
-                body: msg.body,
-                timestamp: msg.timestamp * 1000,
-                hasMedia: msg.hasMedia,
-                sender: msg.fromMe ? 'user' : 'agent'
-            }));
-        } catch (error) {
-            console.error(`Error fetching messages for ${chatId}:`, error);
-            return [];
-        }
-    },
-
-    sendMessage: async (phoneNumber: string, message: string) => {
-        if (!isReady) return false;
-        try {
-            const chatId = phoneNumber.includes('@') ? phoneNumber : `${phoneNumber}@c.us`;
-            await client.sendMessage(chatId, message);
-            return true;
-        } catch (error) {
-            console.error('Error sending message:', error);
-            return false;
-        }
-    },
-
-    logout: async () => {
-        if (client) {
-            await client.logout();
-            isReady = false;
-            qrCodeUrl = '';
-        }
-    },
-
-    getStatus: () => {
-        return { isReady, qr: qrCodeUrl, error: lastError };
-    },
-
-    resetSession: async () => {
-        console.log('Manual Reset Requested');
-        if (client) {
-            try { await client.destroy(); } catch (e) { console.error('Error destroying client:', e); }
-        }
-        whatsappService.initialize(io, true);
-        return true;
-    }
+    getStatus() { return state.status; },
+    getChats,
+    getChatMessages,
+    markAsRead,
+    sendTextMessage,
+    logout,
+    attachSocketID(_userId: string, _socketId: string) {},
 };
+
+export default whatsappService;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Building2, ArrowRight, Eye, EyeOff, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { toCurrentUser, useAuth } from '../../contexts/AuthContext';
@@ -133,17 +133,20 @@ const BuyerLogin: React.FC = () => {
 
           {/* Toggle login/cadastro */}
           <div className="flex bg-gray-100 p-1 rounded-xl mb-6">
-            {(['login', 'register'] as const).map(m => (
-              <button
-                key={m}
-                onClick={() => switchMode(m)}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                  mode === m ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {m === 'login' ? 'Entrar' : 'Cadastrar'}
-              </button>
-            ))}
+            <button
+              onClick={() => switchMode('login')}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                mode === 'login' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Entrar
+            </button>
+            <Link
+              to="/register"
+              className="flex-1 py-2 rounded-lg text-sm font-medium transition-all text-center text-gray-500 hover:text-gray-700"
+            >
+              Cadastrar
+            </Link>
           </div>
 
           {/* Feedback de erro */}
