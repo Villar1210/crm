@@ -31,6 +31,13 @@ const BuyerLogin: React.FC = () => {
     try {
       const user = await api.auth.login(email, password);
       setCurrentUser(toCurrentUser(user));
+
+      // Primeiro acesso — forçar troca de senha
+      if ((user as any).mustChangePassword) {
+        navigate('/change-password');
+        return;
+      }
+
       if (user.role === 'admin' || user.role === 'super_admin' || user.role === 'agent') {
         navigate('/admin');
       } else {
@@ -66,7 +73,7 @@ const BuyerLogin: React.FC = () => {
       // Auto-login após registro
       const user = await api.auth.login(email, password);
       setCurrentUser(toCurrentUser(user));
-      navigate('/admin');
+      navigate((user as any).mustChangePassword ? '/change-password' : '/admin');
     } catch (e: any) {
       const msg = e?.message || '';
       if (msg.includes('already exists') || msg.includes('400')) {

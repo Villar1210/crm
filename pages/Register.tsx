@@ -59,7 +59,7 @@ const Register: React.FC = () => {
         await api.auth.login(formData.email, formData.password);
         navigate(role === 'agent' ? '/admin' : '/buyer/dashboard');
       } catch {
-        navigate('/buyer/login?status=registered');
+        navigate('/login?status=registered');
       }
     } catch (err) {
       setError('Ocorreu um erro ao tentar se cadastrar. Tente novamente.');
@@ -119,7 +119,7 @@ const Register: React.FC = () => {
           </form>
 
           <p className="text-center text-sm text-gray-500 mt-6">
-            Já tem uma conta? <Link to="/buyer/login" className="font-bold text-brand-600 hover:underline">Faça login</Link>
+            Já tem uma conta? <Link to="/login" className="font-bold text-brand-600 hover:underline">Faça login</Link>
           </p>
         </div>
       </div>

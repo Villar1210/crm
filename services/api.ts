@@ -38,7 +38,7 @@ export class ApiClient {
         localStorage.removeItem('token');
         localStorage.removeItem('novamorada_user');
         // If we are mostly a SPA, we might want to redirect or reload
-        // window.location.href = '/#/buyer/login'; 
+        // window.location.href = '/#/login'; 
       }
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `Request failed: ${response.statusText}`);

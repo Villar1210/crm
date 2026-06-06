@@ -54,7 +54,8 @@ export const createUser = async (req: Request, res: Response) => {
                 name,
                 email,
                 password: hashedPassword,
-                role: role || 'agent'
+                role: role || 'agent',
+                mustChangePassword: true
             }
         });
 

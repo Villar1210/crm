@@ -181,7 +181,7 @@ const CreateUserModal: React.FC<{
     }
     setLoading(true);
     try {
-      await ApiClient.post('/users', form);
+      await ApiClient.post('/users', { ...form, mustChangePassword: true });
       onSuccess();
       onClose();
     } catch (e: any) {

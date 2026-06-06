@@ -57,7 +57,7 @@ const Layout: React.FC = () => {
                 </Link>
 
                 {/* Login Button */}
-                <Link to="/buyer/login" className="flex items-center gap-2 px-5 py-2.5 rounded-full text-white bg-brand-900 hover:bg-brand-800 font-bold transition-all text-sm shadow-md shadow-brand-900/10">
+                <Link to="/login" className="flex items-center gap-2 px-5 py-2.5 rounded-full text-white bg-brand-900 hover:bg-brand-800 font-bold transition-all text-sm shadow-md shadow-brand-900/10">
                   <User size={18} />
                   <span>Entrar</span>
                 </Link>
@@ -88,7 +88,7 @@ const Layout: React.FC = () => {
             <Link to="/jobs" className="block py-2 text-gray-600 font-medium" onClick={() => setIsMobileMenuOpen(false)}>Trabalhe Conosco</Link>
             <Link to="/contact" className="block py-2 text-gray-600 font-medium" onClick={() => setIsMobileMenuOpen(false)}>Contato</Link>
             <hr />
-            <Link to="/buyer/login" className="flex items-center gap-2 py-2 text-brand-900 font-bold" onClick={() => setIsMobileMenuOpen(false)}>
+            <Link to="/login" className="flex items-center gap-2 py-2 text-brand-900 font-bold" onClick={() => setIsMobileMenuOpen(false)}>
               <LogIn size={18} /> Área do Cliente
             </Link>
           </div>

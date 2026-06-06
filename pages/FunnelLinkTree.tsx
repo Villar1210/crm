@@ -75,7 +75,7 @@ const FunnelLinkTree: React.FC = () => {
             label: 'Área do Cliente',
             subLabel: 'Acompanhe seus favoritos',
             icon: User,
-            to: '/buyer/login',
+            to: '/login',
             style: 'bg-white/95 backdrop-blur-md text-brand-900 border-white/50 hover:bg-white hover:scale-[1.02]'
         },
         {

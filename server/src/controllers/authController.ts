@@ -85,9 +85,40 @@ export const login = async (req: Request, res: Response) => {
                 email: user.email,
                 role: user.role,
                 avatar: user.avatar,
+                mustChangePassword: user.mustChangePassword || false,
             },
         });
     } catch (error) {
         res.status(500).json({ error: 'Login failed' });
+    }
+};
+
+export const changePassword = async (req: Request, res: Response) => {
+    try {
+        const { userId, currentPassword, newPassword } = req.body;
+
+        if (!newPassword || newPassword.length < 8 ||
+            !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+            return res.status(400).json({ error: 'Senha deve ter 8+ chars, 1 maiúscula e 1 número' });
+        }
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+        // Se tem senha atual, validar
+        if (currentPassword) {
+            const valid = await bcrypt.compare(currentPassword, user.password);
+            if (!valid) return res.status(400).json({ error: 'Senha atual incorreta' });
+        }
+
+        const hashed = await bcrypt.hash(newPassword, 10);
+        await prisma.user.update({
+            where: { id: userId },
+            data: { password: hashed, mustChangePassword: false }
+        });
+
+        res.json({ success: true, message: 'Senha alterada com sucesso' });
+    } catch (error) {
+        res.status(500).json({ error: 'Falha ao alterar senha' });
     }
 };

@@ -57,7 +57,7 @@ const AdminLayout: React.FC = () => {
         // We rely on AuthContext for current user state
         // If context says null, we redirect. 
         if (!currentUser) {
-            navigate('/buyer/login');
+            navigate('/login');
             return;
         }
         if (currentUser.role === 'user') {

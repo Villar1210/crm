@@ -12,6 +12,7 @@ import Campaigns from './pages/Campaigns';
 import Jobs from './pages/Jobs';
 import FunnelLinkTree from './pages/FunnelLinkTree';
 import BuyerLogin from './pages/buyer/Login';
+import ChangePassword from './pages/ChangePassword';
 import Register from './pages/Register';
 import BuyerDashboard from './pages/buyer/Dashboard';
 import Contact from './pages/Contact';
