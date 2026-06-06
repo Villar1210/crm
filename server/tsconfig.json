@@ -8,9 +8,21 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "noImplicitAny": false
+        "noImplicitAny": false,
+        "typeRoots": [
+            "./node_modules/@types"
+        ],
+        "types": [
+            "node",
+            "express",
+            "multer"
+        ]
     },
     "include": [
         "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
     ]
 }
