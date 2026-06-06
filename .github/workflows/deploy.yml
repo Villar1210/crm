@@ -33,7 +33,7 @@ jobs:
 
       # ── 4. Build backend ─────────────────────────────────────────────────────
       - name: Instalar dependências do backend
-        run: npm ci
+        run: npm install
         working-directory: ./server
 
       - name: Compilar TypeScript do backend
@@ -62,7 +62,7 @@ jobs:
             git pull origin main
 
             echo "→ Instalando dependências do backend..."
-            npm ci --production
+            npm install --production
 
             echo "→ Compilando TypeScript..."
             npm run build
