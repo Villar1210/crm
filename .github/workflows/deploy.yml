@@ -7,68 +7,56 @@ on:
 
 jobs:
   deploy:
-    name: Build & Deploy
+    name: Deploy
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Instalar dependências do frontend
-        run: npm ci
-
-      - name: Build frontend (Vite)
-        run: npm run build
-        env:
-          VITE_API_URL: https://ivillar.com.br/api
-
-      - name: Instalar dependências do backend
-        run: npm install
-        working-directory: ./server
-
-      - name: Compilar TypeScript do backend
-        run: npm run build
-        working-directory: ./server
-
-      - name: Deploy na VPS
+      - name: Deploy na VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 30m
           script: |
             set -e
             echo "=== Iniciando deploy ==="
 
-            # Frontend
+            # ── Frontend ──────────────────────────────────────────
             cd /var/www/ivillar.com.br
-            echo "→ Atualizando código frontend..."
+            echo "→ Atualizando código..."
             git fetch origin main
             git reset --hard origin/main
 
-            # Backend
+            echo "→ Instalando dependências do frontend..."
+            npm install
+
+            echo "→ Buildando frontend..."
+            VITE_API_URL=https://ivillar.com.br/api npm run build
+
+            echo "→ Build gerado em: $(ls dist/ | head -5)"
+
+            # ── Backend ───────────────────────────────────────────
             cd /var/www/crm
             echo "→ Atualizando backend..."
             git fetch origin main
             git reset --hard origin/main
 
-            echo "→ Instalando dependências do backend..."
             cd /var/www/crm/server
-            npm install --production
+            echo "→ Instalando dependências do backend..."
+            npm install
 
             echo "→ Compilando TypeScript..."
             npm run build
 
-            echo "→ Rodando migrations do banco..."
+            echo "→ Rodando migrations..."
             npx prisma migrate deploy
 
-            echo "→ Reiniciando processos PM2..."
+            # ── Reiniciar serviços ────────────────────────────────
+            echo "→ Reiniciando PM2..."
             pm2 restart ivillar-crm
             pm2 restart crm-backend
             pm2 save
@@ -76,13 +64,14 @@ jobs:
             echo "→ Recarregando Nginx..."
             systemctl reload nginx
 
-            echo "=== Deploy concluído com sucesso! ==="
+            echo "=== Deploy concluído! ==="
+            echo "Acesse: https://ivillar.com.br/admin"
 
-      - name: Status do deploy
+      - name: Status
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Deploy realizado com sucesso em $(date '+%d/%m/%Y %H:%M')"
+            echo "✅ Deploy OK em $(date '+%d/%m/%Y %H:%M')"
           else
-            echo "❌ Deploy falhou — verifique os logs acima"
+            echo "❌ Deploy falhou"
           fi
