@@ -772,8 +772,6 @@ const LeadDetailModal: React.FC<{
     const [localLead, setLocalLead] = useState(lead);
     const [activeMainTab, setActiveMainTab] = useState<'activity' | 'notes' | 'profile' | 'files'>('activity');
     const [isSavingProfile, setIsSavingProfile] = useState(false);
-    const [newLeadForm, setNewLeadForm] = useState({ name: '', phone: '', interest: '' });
-    const [isCreatingLead, setIsCreatingLead] = useState(false);
     const [activeProfile, setActiveProfile] = useState<ActiveProfileTab>(() => {
         return crmSettings?.defaultProfile || 'MASTER';
     });
@@ -3283,6 +3281,8 @@ const CRM: React.FC = () => {
     const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
     // Automation State
     const [automationModalOpen, setAutomationModalOpen] = useState(false);
+    const [newLeadForm, setNewLeadForm] = useState({ name: '', phone: '', interest: '' });
+    const [isCreatingLead, setIsCreatingLead] = useState(false);
     const [crmSettings, setCrmSettings] = useState<CRMSettings>({ enableAutomations: false, automationStagnancyDays: 3, allowDefaultPipelineDeletion: false, enableProfileMaster: true, enableProfileWA: false, enableProfileSF: false, enableProfilePD: false, enableProfileRD: false, defaultProfile: 'MASTER', whatsappIntegrationMode: 'platform' });
 
     const [isPipelineModalOpen, setIsPipelineModalOpen] = useState(false);
