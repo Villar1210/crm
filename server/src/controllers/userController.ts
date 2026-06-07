@@ -94,3 +94,20 @@ export const deleteUser = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Failed to delete user' });
     }
 };
+
+export const uploadAvatar = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+
+        const avatarUrl = `/uploads/${req.file.filename}`;
+        const user = await prisma.user.update({
+            where: { id },
+            data: { avatar: avatarUrl }
+        });
+
+        res.json({ avatar: avatarUrl, user });
+    } catch (error) {
+        res.status(500).json({ error: 'Falha ao atualizar avatar' });
+    }
+};

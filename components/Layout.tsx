@@ -199,7 +199,12 @@ const Layout: React.FC = () => {
             <p>CRECI: 12.345-J</p>
           </div>
         </div>
-      </footer>
+            {/* Créditos */}
+      <div className="bg-gray-950 py-4 text-center text-xs text-gray-600">
+        <p>© {new Date().getFullYear()} Ivillar. Todos os direitos reservados.</p>
+        <p className="mt-1">Desenvolvido por <span className="text-brand-400 font-semibold">Daniel Villar</span></p>
+      </div>
+    </footer>
     </div>
   );
 };
