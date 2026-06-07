@@ -138,7 +138,7 @@ const AdminLayout: React.FC = () => {
         <div className="min-h-screen bg-surface-100 font-sans flex flex-col overflow-hidden">
 
             {/* --- HEADER (Facebook Style) --- */}
-            <header className="h-14 bg-white/90 backdrop-blur-md border-b border-gray-100 fixed top-0 w-full z-[100] flex items-center justify-between px-4 shadow-sm">
+            <header className="h-14 bg-white/90 backdrop-blur-md border-b border-gray-100 fixed top-0 w-full z-[50] flex items-center justify-between px-4 shadow-sm">
 
                 {/* Left: Logo & Search */}
                 <div className="flex items-center gap-2 md:w-[300px]">
@@ -219,7 +219,7 @@ const AdminLayout: React.FC = () => {
 
                 {/* LEFT SIDEBAR (Tools) */}
                 <aside className={`
-            fixed md:static inset-y-0 left-0 z-[90] bg-surface-100 md:bg-transparent overflow-y-auto custom-scrollbar transform transition-all duration-300 ease-in-out
+            fixed md:static inset-y-0 left-0 z-[40] bg-surface-100 md:bg-transparent overflow-y-auto custom-scrollbar transform transition-all duration-300 ease-in-out
             ${isMobileMenuOpen ? 'translate-x-0 bg-white shadow-2xl pt-14 w-[280px]' : '-translate-x-full md:translate-x-0'}
             ${showLeftSidebar ? 'md:w-[280px]' : 'md:w-0 md:opacity-0 md:overflow-hidden'}
             p-4 hover:overflow-y-auto

@@ -138,3 +138,10 @@
   body { background: white; }
   .card { box-shadow: none; border: 1px solid #e2e8f0; }
 }
+
+/* ── Modal overlay — sempre acima de tudo ─────────────────────────── */
+.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+}
