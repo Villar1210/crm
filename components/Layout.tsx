@@ -3,8 +3,10 @@ import React, { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Menu, X, Building2, User, LogIn, MapPin, Phone, Mail, Clock, Instagram, Facebook, Linkedin, Zap, Search } from 'lucide-react';
 import { APP_CONFIG } from '../constants';
+import { useSiteConfig } from '../hooks/useSiteConfig';
 
 const Layout: React.FC = () => {
+  const { config: siteConfig } = useSiteConfig();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -21,7 +23,7 @@ const Layout: React.FC = () => {
               <div className="bg-brand-900 text-white p-2 rounded-lg">
                 <Building2 size={24} />
               </div>
-              <span className="text-xl font-serif font-bold text-brand-900 tracking-tight">{APP_CONFIG.companyName}</span>
+              <span className="text-xl font-serif font-bold text-brand-900 tracking-tight">{siteConfig.companyName}</span>
             </Link>
 
             {/* Right Side Container (Nav + Login) */}
@@ -102,7 +104,7 @@ const Layout: React.FC = () => {
 
       {/* Floating WhatsApp Button - Official Image */}
       <a
-        href={`https://wa.me/${APP_CONFIG.whatsapp}?text=Olá! Gostaria de mais informações sobre os imóveis.`}
+        href={`https://wa.me/${siteConfig.whatsapp}?text=Olá! Gostaria de mais informações sobre os imóveis.`}
         target="_blank"
         rel="noreferrer"
         className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full shadow-2xl transition-all hover:scale-110 hover:-translate-y-1 group"
@@ -131,15 +133,15 @@ const Layout: React.FC = () => {
                 <div className="bg-brand-600 p-1.5 rounded-lg">
                   <Building2 size={20} />
                 </div>
-                <span className="text-xl font-serif font-bold">{APP_CONFIG.companyName}</span>
+                <span className="text-xl font-serif font-bold">{siteConfig.companyName}</span>
               </div>
               <p className="text-sm leading-relaxed text-gray-400">
                 Referência em negócios imobiliários. Conectamos pessoas a seus sonhos com transparência, segurança e atendimento exclusivo.
               </p>
               <div className="flex gap-4 pt-2">
-                <a href={APP_CONFIG.social.instagram} className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all"><Instagram size={16} /></a>
-                <a href={APP_CONFIG.social.facebook} className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all"><Facebook size={16} /></a>
-                <a href={APP_CONFIG.social.linkedin} className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all"><Linkedin size={16} /></a>
+                <a href={siteConfig.social.instagram} className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all"><Instagram size={16} /></a>
+                <a href={siteConfig.social.facebook} className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all"><Facebook size={16} /></a>
+                <a href={siteConfig.social.linkedin} className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all"><Linkedin size={16} /></a>
               </div>
             </div>
 
@@ -175,15 +177,15 @@ const Layout: React.FC = () => {
               <ul className="space-y-4 text-sm">
                 <li className="flex items-start gap-3">
                   <MapPin size={18} className="text-brand-600 flex-shrink-0 mt-0.5" />
-                  <span>{APP_CONFIG.address}</span>
+                  <span>{siteConfig.address}</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <Phone size={18} className="text-brand-600 flex-shrink-0" />
-                  <span>{APP_CONFIG.whatsapp}</span>
+                  <span>{siteConfig.whatsapp}</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <Mail size={18} className="text-brand-600 flex-shrink-0" />
-                  <span>{APP_CONFIG.email}</span>
+                  <span>{siteConfig.email}</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <Clock size={18} className="text-brand-600 flex-shrink-0" />
@@ -195,7 +197,7 @@ const Layout: React.FC = () => {
           </div>
 
           <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500">
-            <p>© {new Date().getFullYear()} {APP_CONFIG.companyName}. Todos os direitos reservados.</p>
+            <p>© {new Date().getFullYear()} {siteConfig.companyName}. Todos os direitos reservados.</p>
             <p>CRECI: 12.345-J</p>
           </div>
         </div>
