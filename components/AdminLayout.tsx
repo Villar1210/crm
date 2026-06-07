@@ -307,20 +307,9 @@ const AdminLayout: React.FC = () => {
                             </div>
 
                             <div className="space-y-4">
-                                {systemNews.map(news => (
-                                    <div key={news.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer group">
-                                        <div className="flex items-start gap-3">
-                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${news.author === 'Diretoria' ? 'bg-purple-600' : news.author === 'Tech' ? 'bg-gray-700' : 'bg-brand-600'}`}>
-                                                {news.author[0]}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-bold text-gray-900 group-hover:text-brand-600 transition-colors truncate">{news.title}</p>
-                                                <p className="text-xs text-gray-600 mt-1 leading-relaxed line-clamp-2">{news.content}</p>
-                                                <p className="text-[10px] text-gray-400 mt-2 font-medium">{news.date} • {news.author}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
+                                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
+                                    <p className="text-xs text-gray-400">Nenhum aviso no momento</p>
+                                </div>
                             </div>
                         </div>
 
