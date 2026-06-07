@@ -46,37 +46,22 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
 // Get Site Settings
 export const getSiteSettings = async (_req: Request, res: Response) => {
     try {
-        let settings = await prisma.systemSettings.findUnique({
-            where: { id: 'site' }
-        });
+        const rows: any[] = await prisma.$queryRawUnsafe(
+            `SELECT branding FROM SystemSettings WHERE id = 'site' LIMIT 1`
+        );
 
-        if (!settings) {
-            const defaults = {
+        if (!rows.length || !rows[0].branding) {
+            return res.json({
                 companyName: 'Ivillar',
                 tagline: 'Encontre o lugar ideal para sua história acontecer.',
-                phone: '',
-                email: '',
-                address: '',
-                instagram: '',
-                facebook: '',
-                whatsapp: '',
+                phone: '', email: '', address: '',
+                instagram: '', facebook: '', whatsapp: '',
                 footerText: 'Desenvolvido por Daniel Villar',
-                primaryColor: '#4f46e5',
-                logo: '',
-            };
-            settings = await prisma.systemSettings.create({
-                data: {
-                    id: 'site',
-                    branding: JSON.stringify(defaults),
-                    integrations: '[]',
-                    security: '{}'
-                }
+                primaryColor: '#4f46e5', logo: '',
             });
-            return res.json(defaults);
         }
 
-        const data = JSON.parse(settings.branding || '{}');
-        res.json(data);
+        res.json(JSON.parse(rows[0].branding));
     } catch (error) {
         console.error('getSiteSettings error:', error);
         res.status(500).json({ error: 'Failed to fetch site settings' });
@@ -87,19 +72,24 @@ export const getSiteSettings = async (_req: Request, res: Response) => {
 export const updateSiteSettings = async (req: Request, res: Response) => {
     try {
         const data = req.body;
+        const branding = JSON.stringify(data);
 
-        await prisma.systemSettings.upsert({
-            where: { id: 'site' },
-            create: {
-                id: 'site',
-                branding: JSON.stringify(data),
-                integrations: '[]',
-                security: '{}'
-            },
-            update: {
-                branding: JSON.stringify(data)
-            }
-        });
+        // Verificar se existe
+        const rows: any[] = await prisma.$queryRawUnsafe(
+            `SELECT id FROM SystemSettings WHERE id = 'site' LIMIT 1`
+        );
+
+        if (rows.length) {
+            await prisma.$executeRawUnsafe(
+                `UPDATE SystemSettings SET branding = ? WHERE id = 'site'`,
+                branding
+            );
+        } else {
+            await prisma.$executeRawUnsafe(
+                `INSERT INTO SystemSettings (id, branding, integrations, security) VALUES ('site', ?, '[]', '{}')`,
+                branding
+            );
+        }
 
         res.json({ success: true, data });
     } catch (error) {
