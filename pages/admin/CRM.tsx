@@ -2013,6 +2013,19 @@ const LeadDetailModal: React.FC<{
                                 </div>
                             </div>
                         </>
+                        {/* Botão Salvar fixo */}
+                        <div className="sticky bottom-0 bg-white border-t border-gray-100 p-4 flex justify-end gap-3 shadow-lg mt-4">
+                            <button
+                                onClick={handleSaveProfile}
+                                disabled={isSavingProfile}
+                                className="btn-primary px-8"
+                            >
+                                {isSavingProfile
+                                    ? <><RotateCcw className="w-4 h-4 animate-spin" /> Salvando...</>
+                                    : <><Save className="w-4 h-4" /> Salvar dados</>
+                                }
+                            </button>
+                        </div>
                     )}
                     {activeMainTab === 'notes' && (
                         <div className="flex-1 overflow-y-auto p-8 bg-gray-50">
