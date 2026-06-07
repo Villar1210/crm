@@ -28,6 +28,7 @@ const PropertiesList = lazy(() => import('./pages/admin/PropertiesList'));
 const PropertyForm = lazy(() => import('./pages/admin/PropertyForm'));
 const AdminSettings = lazy(() => import('./pages/admin/Settings'));
 const AdminConfig = lazy(() => import('./pages/admin/AdminConfig'));
+const SuperAdmin = lazy(() => import('./pages/admin/SuperAdmin'));
 const UsersList = lazy(() => import('./pages/admin/UsersList'));
 const CampaignsList = lazy(() => import('./pages/admin/CampaignsList'));
 const CampaignForm = lazy(() => import('./pages/admin/CampaignForm'));
