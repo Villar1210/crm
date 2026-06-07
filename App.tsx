@@ -95,7 +95,6 @@ const App: React.FC = () => {
             <Route path="about" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><About /></Suspense>} />
             <Route path="advertise" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><Advertise /></Suspense>} />
             {/* Buyer Area Routes */}
-            <Route path="buyer/login" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><BuyerLogin /></Suspense>} />
             <Route path="register" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><Register /></Suspense>} />
             <Route path="buyer/dashboard" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><BuyerDashboard /></Suspense>} />
           </Route>

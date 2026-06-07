@@ -6,7 +6,7 @@ const SuperAdminRoute: React.FC = () => {
   const { currentUser } = useAuth();
 
   if (!currentUser) {
-    return <Navigate to="/buyer/login" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   if (currentUser.role !== 'super_admin') {
