@@ -8,7 +8,7 @@ set -e
 
 DOMAIN="ivillar.com.br"
 FRONTEND_PATH="/var/www/ivillar.com.br"
-BACKEND_PORT="3001"
+BACKEND_PORT="8080"
 
 echo "=== Configurando Nginx para SPA (BrowserRouter) ==="
 

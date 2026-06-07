@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import AdminLayout from './components/AdminLayout';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AuthProvider } from './contexts/AuthContext';
 // Public Pages
 import Home from './pages/Home';
 import Properties from './pages/Properties';
@@ -77,6 +78,7 @@ import CampaignWizard from './pages/admin/emailMarketing/CampaignWizard';
 const App: React.FC = () => {
   return (
     <ThemeProvider>
+      <AuthProvider>
       <BrowserRouter>
         <Routes>
           {/* Linktree Funnel (Special Route) */}
@@ -167,6 +169,7 @@ const App: React.FC = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </AuthProvider>
     </ThemeProvider>
   );
 };
