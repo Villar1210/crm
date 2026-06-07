@@ -771,6 +771,7 @@ const LeadDetailModal: React.FC<{
 }> = ({ lead, pipeline, onClose, onUpdate, isFullScreen = false, crmSettings, setAutomationModalOpen }) => {
     const [localLead, setLocalLead] = useState(lead);
     const [activeMainTab, setActiveMainTab] = useState<'activity' | 'notes' | 'profile' | 'files'>('activity');
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
     const [activeProfile, setActiveProfile] = useState<ActiveProfileTab>(() => {
         return crmSettings?.defaultProfile || 'MASTER';
     });
@@ -1035,6 +1036,19 @@ const LeadDetailModal: React.FC<{
         const updatedLead = { ...localLead, tasks: [newTask, ...(localLead.tasks || [])], lastInteraction: new Date().toISOString() };
         setLocalLead(updatedLead);
         onUpdate(updatedLead);
+    };
+
+
+    const handleSaveProfile = async () => {
+        setIsSavingProfile(true);
+        try {
+            await api.leads.update(localLead.id, localLead);
+            onUpdate(localLead);
+        } catch (e) {
+            console.error('Erro ao salvar lead:', e);
+        } finally {
+            setIsSavingProfile(false);
+        }
     };
 
     const toggleQuickAction = (action: QuickActionType) => {

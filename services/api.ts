@@ -161,6 +161,9 @@ export const api = {
       const ownerId = user?.id;
       return ApiClient.post<Lead>('/leads', { ...lead, ownerId: lead.ownerId || ownerId });
     },
+    update: async (id: string, data: Partial<Lead>) => {
+      return ApiClient.put<Lead>(`/leads/${id}`, data);
+    },
     updateStatus: async (id: string, status: LeadStatus) => {
       await ApiClient.put(`/leads/${id}`, { status });
       return true;
