@@ -165,6 +165,8 @@ const App: React.FC = () => {
           </Route>
 
           {/* Catch all */}
+          <Route path="login" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><BuyerLogin /></Suspense>} />
+          <Route path="change-password" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><ChangePassword /></Suspense>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
