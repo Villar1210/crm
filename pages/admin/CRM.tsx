@@ -772,6 +772,8 @@ const LeadDetailModal: React.FC<{
     const [localLead, setLocalLead] = useState(lead);
     const [activeMainTab, setActiveMainTab] = useState<'activity' | 'notes' | 'profile' | 'files'>('activity');
     const [isSavingProfile, setIsSavingProfile] = useState(false);
+    const [newLeadForm, setNewLeadForm] = useState({ name: '', phone: '', interest: '' });
+    const [isCreatingLead, setIsCreatingLead] = useState(false);
     const [activeProfile, setActiveProfile] = useState<ActiveProfileTab>(() => {
         return crmSettings?.defaultProfile || 'MASTER';
     });
@@ -3546,28 +3548,35 @@ const CRM: React.FC = () => {
         alert("Ordem salva com sucesso!");
     };
 
-    const handleAddLead = (e: React.FormEvent) => {
+    const handleAddLead = async (e: React.FormEvent) => {
         e.preventDefault();
-        const newLead: Lead = {
-            id: `l${Date.now()}`,
-            name: 'Novo Interessado',
-            email: 'interessado@email.com',
-            phone: '11999999999',
-            status: LeadStatus.NEW,
-            interest: 'Interesse Geral',
-            notes: [],
-            tasks: [],
-            tags: [],
-            createdAt: new Date().toISOString().split('T')[0],
-            source: 'whatsapp',
-            temperature: 'warm',
-            probability: 50,
-            score: 10,
-            assignedTo: currentUser?.id
-        };
-        setLeads([newLead, ...leads]);
-        setIsModalOpen(false);
-        if (viewMode !== 'inbox') setViewMode('inbox');
+        if (!newLeadForm.name.trim() || !newLeadForm.phone.trim()) return;
+        setIsCreatingLead(true);
+        try {
+            const created = await api.leads.create({
+                name: newLeadForm.name.trim(),
+                phone: newLeadForm.phone.trim(),
+                interest: newLeadForm.interest.trim() || 'Interesse Geral',
+                status: LeadStatus.NEW,
+                source: 'direto',
+                temperature: 'warm',
+                probability: 50,
+                score: 10,
+                assignedTo: currentUser?.id,
+                notes: [],
+                tasks: [],
+                tags: [],
+            });
+            setLeads([created, ...leads]);
+            setIsModalOpen(false);
+            setNewLeadForm({ name: '', phone: '', interest: '' });
+            setSelectedLead(created);
+            if (viewMode !== 'inbox') setViewMode('inbox');
+        } catch (err) {
+            console.error('Erro ao criar lead:', err);
+        } finally {
+            setIsCreatingLead(false);
+        }
     };
 
     const handleLeadUpdate = (updatedLead: Lead) => {
@@ -4234,18 +4243,48 @@ const CRM: React.FC = () => {
                                 </div>
                                 <form onSubmit={handleAddLead} className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-1">Nome do Contato</label>
-                                        <input type="text" className="w-full border rounded-lg px-3 py-2" placeholder="Nome" required />
+                                        <label className="block text-sm font-bold text-gray-700 mb-1">Nome do Contato *</label>
+                                        <input
+                                            type="text"
+                                            className="input-base"
+                                            placeholder="Nome completo"
+                                            value={newLeadForm.name}
+                                            onChange={e => setNewLeadForm(p => ({ ...p, name: e.target.value }))}
+                                            required
+                                            autoFocus
+                                        />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-1">Telefone</label>
-                                        <input type="text" className="w-full border rounded-lg px-3 py-2" placeholder="(00) 00000-0000" required />
+                                        <label className="block text-sm font-bold text-gray-700 mb-1">Telefone / WhatsApp *</label>
+                                        <input
+                                            type="text"
+                                            className="input-base"
+                                            placeholder="(00) 00000-0000"
+                                            value={newLeadForm.phone}
+                                            onChange={e => setNewLeadForm(p => ({ ...p, phone: e.target.value }))}
+                                            required
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-1">Imóvel de Interesse</label>
-                                        <input type="text" className="w-full border rounded-lg px-3 py-2" placeholder="Ex: Apartamento Centro" />
+                                        <input
+                                            type="text"
+                                            className="input-base"
+                                            placeholder="Ex: Apartamento Centro"
+                                            value={newLeadForm.interest}
+                                            onChange={e => setNewLeadForm(p => ({ ...p, interest: e.target.value }))}
+                                        />
                                     </div>
-                                    <button className="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700">Criar Negócio</button>
+                                    <button
+                                        type="submit"
+                                        disabled={isCreatingLead || !newLeadForm.name || !newLeadForm.phone}
+                                        className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        {isCreatingLead
+                                            ? <><RotateCcw className="w-4 h-4 animate-spin" /> Criando...</>
+                                            : <><Plus size={18} /> Criar Negócio</>
+                                        }
+                                    </button>
                                 </form>
                             </div>
                         </div>
