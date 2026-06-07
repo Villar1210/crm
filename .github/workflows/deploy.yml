@@ -21,6 +21,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 30m
+          connect_timeout: 60s
           script: |
             set -e
             echo "=== Iniciando deploy ==="
