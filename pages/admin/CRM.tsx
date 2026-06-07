@@ -3723,7 +3723,7 @@ const CRM: React.FC = () => {
         : undefined;
 
     return (
-        <div className="h-[calc(100vh-3.5rem)] flex flex-col relative animate-fade-in -mt-6 -mx-6 px-6 pt-4">
+        <div className="flex flex-col relative animate-fade-in">
             <div className="mb-6">
                 <div className="bg-gray-100 rounded-2xl p-1">
                     <div className="flex gap-1 overflow-x-auto hide-scrollbar">
