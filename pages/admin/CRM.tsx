@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Search, Plus, Calendar, Phone, Mail, MapPin, Tag,
     ChevronDown, ChevronRight, X, User, DollarSign, Briefcase, FileText,
@@ -4253,7 +4254,7 @@ const CRM: React.FC = () => {
                         </div>
                     )}
 
-                    {selectedLead && (
+                    {selectedLead && createPortal(
                         <LeadDetailModal
                             lead={selectedLead}
                             pipeline={currentPipeline}
@@ -4261,7 +4262,7 @@ const CRM: React.FC = () => {
                             onUpdate={handleLeadUpdate}
                             crmSettings={crmSettings}
                             setAutomationModalOpen={setAutomationModalOpen}
-                        />
+                        />, document.body
                     )}
                 </>
             )}
