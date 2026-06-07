@@ -447,7 +447,7 @@ const PipelineEditorModal: React.FC<{ onClose: () => void, onSave: (pipeline: Pi
     };
 
     return (
-        <div className="absolute inset-0 z-50 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                     <h3 className="text-xl font-bold text-gray-900">Novo Funil de Vendas</h3>
@@ -538,7 +538,7 @@ const StageEditorModal: React.FC<{
     const [selectedColor, setSelectedColor] = useState(initialData?.color || colors[5].value);
 
     return (
-        <div className="absolute inset-0 z-[60] bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[200] bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -607,7 +607,7 @@ const GroupEditorModal: React.FC<{
     const [groupColor, setGroupColor] = useState('#3b82f6'); // Default Blue
 
     return (
-        <div className="absolute inset-0 z-[60] bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[200] bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -1444,7 +1444,7 @@ const LeadDetailModal: React.FC<{
 
     return (
         <div
-            className={`fixed inset-0 z-50 flex justify-center items-start animate-fade-in transition-all duration-300 ${isFullScreenLocal
+            className={`fixed inset-0 z-[200] flex justify-center items-start animate-fade-in transition-all duration-300 ${isFullScreenLocal
                 ? 'bg-slate-900/10 pt-0 px-0 pb-0'
                 : 'bg-slate-900/10 pt-16 sm:pt-24 lg:pt-32 px-4 sm:px-6 pb-6'
                 }`}
@@ -4171,7 +4171,7 @@ const CRM: React.FC = () => {
 
                     {/* DELETE CONFIRMATION MODAL */}
                     {isDeleteStageModalOpen && (
-                        <div className="absolute inset-0 z-[70] bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="fixed inset-0 z-[200] bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-fade-in">
                                 <div className="text-center mb-6">
                                     <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3 text-red-500">
@@ -4194,7 +4194,7 @@ const CRM: React.FC = () => {
 
                     {/* ... Rest of modals (LossReason, LeadDetail, etc.) unchanged ... */}
                     {isModalOpen && (
-                        <div className="absolute inset-0 z-50 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="fixed inset-0 z-[200] bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-xl font-bold text-gray-900">Novo Negócio</h3>
@@ -4220,7 +4220,7 @@ const CRM: React.FC = () => {
                     )}
 
                     {lossModalOpen && (
-                        <div className="absolute inset-0 z-50 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                        <div className="fixed inset-0 z-[200] bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
                             <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl border-2 border-red-100">
                                 <div className="text-center mb-6">
                                     <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3 text-red-500">
@@ -4549,7 +4549,7 @@ const CRM: React.FC = () => {
 
             {/* AUTOMATION MODAL */}
             {automationModalOpen && selectedLead && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in">
                         <div className="bg-indigo-600 p-6 text-white relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-4 opacity-10">
