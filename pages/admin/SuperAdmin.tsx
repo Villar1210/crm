@@ -31,6 +31,7 @@ const SuperAdmin: React.FC = () => {
   const [tab, setTab] = useState('profile');
   const { currentUser } = useAuth();
   const { toast, show } = useToast();
+  const [savingSite, setSavingSite] = useState(false);
 
   // ── Profile state ──────────────────────────────────────────────────
   const [profile, setProfile] = useState({ name: '', email: '', phone: '', avatar: '' });
@@ -191,10 +192,15 @@ const SuperAdmin: React.FC = () => {
 
   // ── Site handlers ──────────────────────────────────────────────────
   const handleSaveSite = async () => {
+    setSavingSite(true);
     try {
       await ApiClient.post('/settings/site', site);
-      show('Configurações do site salvas!');
-    } catch { show('Erro ao salvar', 'err'); }
+      show('Configurações do site salvas com sucesso!');
+    } catch (e: any) {
+      show(e?.message || 'Erro ao salvar configurações', 'err');
+    } finally {
+      setSavingSite(false);
+    }
   };
 
   const roleLabel = (role: string) => ({
@@ -519,8 +525,11 @@ const SuperAdmin: React.FC = () => {
             </div>
           </div>
 
-          <button onClick={handleSaveSite} className="btn-primary w-full justify-center">
-            <Save className="w-4 h-4" /> Salvar configurações do site
+          <button onClick={handleSaveSite} disabled={savingSite} className="btn-primary w-full justify-center">
+            {savingSite
+              ? <><RefreshCw className="w-4 h-4 animate-spin" /> Salvando...</>
+              : <><Save className="w-4 h-4" /> Salvar configurações do site</>
+            }
           </button>
         </div>
       )}
