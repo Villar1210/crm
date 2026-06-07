@@ -38,7 +38,7 @@ const AdminLayout: React.FC = () => {
 
     // Desktop Sidebar States (Toggles)
     const [showLeftSidebar, setShowLeftSidebar] = useState(true);
-    const [showRightSidebar, setShowRightSidebar] = useState(true);
+    const [showRightSidebar, setShowRightSidebar] = useState(false);
 
     const [teamUsers, setTeamUsers] = useState<any[]>([]);
 
