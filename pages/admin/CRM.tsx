@@ -3723,15 +3723,15 @@ const CRM: React.FC = () => {
         : undefined;
 
     return (
-        <div className="h-[calc(100vh-6.25rem)] flex flex-col relative animate-fade-in">
+        <div className="h-[calc(100vh-3.5rem)] flex flex-col relative animate-fade-in -mt-6 -mx-6 px-6 pt-4">
             <div className="mb-6">
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-2">
-                    <div className="flex gap-2 overflow-x-auto">
+                <div className="bg-gray-100 rounded-2xl p-1">
+                    <div className="flex gap-1 overflow-x-auto hide-scrollbar">
                         <button
                             onClick={() => setActiveCrmTab('pipeline')}
-                            className={`whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold transition ${activeCrmTab === 'pipeline'
-                                ? 'bg-brand-600 text-white shadow-sm'
-                                : 'text-gray-600 hover:bg-gray-100'
+                            className={`whitespace-nowrap px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeCrmTab === 'pipeline'
+                                ? 'bg-white text-brand-700 shadow-sm font-semibold'
+                                : 'text-gray-500 hover:text-gray-700'
                                 }`}
                         >
                             Pipeline de Vendas
@@ -3739,9 +3739,9 @@ const CRM: React.FC = () => {
                         {showMassSender && (
                             <button
                                 onClick={() => setActiveCrmTab('broadcast')}
-                                className={`whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2 ${activeCrmTab === 'broadcast'
-                                    ? 'bg-brand-600 text-white shadow-sm'
-                                    : 'text-gray-600 hover:bg-gray-100'
+                                className={`whitespace-nowrap px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${activeCrmTab === 'broadcast'
+                                    ? 'bg-white text-brand-700 shadow-sm font-semibold'
+                                    : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
                                 <Rocket size={16} />
@@ -3751,9 +3751,9 @@ const CRM: React.FC = () => {
                         {showLeadRoulette && (
                             <button
                                 onClick={() => setActiveCrmTab('roulette')}
-                                className={`whitespace-nowrap px-4 py-2 rounded-xl text-sm font-semibold transition ${activeCrmTab === 'roulette'
-                                    ? 'bg-brand-600 text-white shadow-sm'
-                                    : 'text-gray-600 hover:bg-gray-100'
+                                className={`whitespace-nowrap px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeCrmTab === 'roulette'
+                                    ? 'bg-white text-brand-700 shadow-sm font-semibold'
+                                    : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
                                 Distribuicao de Leads
@@ -3769,8 +3769,8 @@ const CRM: React.FC = () => {
                     <div className="flex flex-col gap-4 mb-6">
                         <div className="flex justify-between items-center">
                             <div>
-                                <h2 className="text-2xl font-serif font-bold text-gray-900">Pipeline de Vendas</h2>
-                                <p className="text-gray-500 text-sm">Gestão focada em atividades (Activity-Based Selling).</p>
+                                <h2 className="text-xl font-bold text-gray-900">CRM & Leads</h2>
+                                <p className="text-gray-500 text-sm">Gestão focada em atividades de vendas</p>
                             </div>
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-gray-200 shadow-sm hidden md:flex">
@@ -3783,7 +3783,7 @@ const CRM: React.FC = () => {
                                     </button>
                                 </div>
                                 {/* BUTTON TO CREATE NEW FUNNEL */}
-                                <button onClick={() => setIsPipelineModalOpen(true)} className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-sm hover:bg-gray-50 transition-colors text-sm whitespace-nowrap">
+                                <button onClick={() => setIsPipelineModalOpen(true)} className="btn-secondary text-sm whitespace-nowrap">
                                     <Plus size={18} className="text-brand-600" /> Novo Funil
                                 </button>
 
@@ -3791,7 +3791,7 @@ const CRM: React.FC = () => {
                                 {!isGroupingMode ? (
                                     <button
                                         onClick={() => setIsGroupingMode(true)}
-                                        className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-sm hover:bg-gray-50 transition-colors text-sm whitespace-nowrap"
+                                        className="btn-secondary text-sm whitespace-nowrap"
                                         disabled={isPipelineEmpty}
                                     >
                                         <Users size={18} className="text-brand-600" /> Criar Grupo
