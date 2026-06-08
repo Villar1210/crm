@@ -1,11 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Globe, Phone, Mail, MapPin, ToggleLeft, ToggleRight, Layout, AlertTriangle } from 'lucide-react';
 import { APP_CONFIG } from '../../constants';
+import { useSiteConfig } from '../../hooks/useSiteConfig';
+import { ApiClient } from '../../services/api';
 import { api } from '../../services/api';
 import { CRMSettings } from '../../types';
 
 const AdminSettings: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const { config: siteConfig } = useSiteConfig();
+  const [siteForm, setSiteForm] = useState({
+    companyName: APP_CONFIG.companyName,
+    whatsapp: APP_CONFIG.whatsapp,
+    email: APP_CONFIG.email,
+    address: APP_CONFIG.address,
+    instagram: APP_CONFIG.social.instagram,
+    facebook: APP_CONFIG.social.facebook,
+  });
+
+  // Carregar dados do banco quando disponíveis
+  React.useEffect(() => {
+    if (siteConfig) {
+      setSiteForm({
+        companyName: siteConfig.companyName || APP_CONFIG.companyName,
+        whatsapp: siteConfig.whatsapp || APP_CONFIG.whatsapp,
+        email: siteConfig.email || APP_CONFIG.email,
+        address: siteConfig.address || APP_CONFIG.address,
+        instagram: siteConfig.social?.instagram || APP_CONFIG.social.instagram,
+        facebook: siteConfig.social?.facebook || APP_CONFIG.social.facebook,
+      });
+    }
+  }, [siteConfig]);
   const [crmSettings, setCrmSettings] = useState<CRMSettings>({
     allowDefaultPipelineDeletion: false,
     enableProfileMaster: true,
@@ -29,10 +54,17 @@ const AdminSettings: React.FC = () => {
 
   const handleSave = async () => {
     setLoading(true);
-    await api.crm.updateSettings(crmSettings);
-    // Here we would also save the general APP_CONFIG if it were dynamic
-    setLoading(false);
-    alert('Configurações salvas com sucesso!');
+    try {
+      await Promise.all([
+        api.crm.updateSettings(crmSettings),
+        ApiClient.post('/settings/site', siteForm)
+      ]);
+      // Feedback visual já dado pelo botão loading
+    } catch (e) {
+      console.error('Erro ao salvar');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -76,7 +108,7 @@ const AdminSettings: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Nome da Imobiliária</label>
-                <input type="text" defaultValue={APP_CONFIG.companyName} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" />
+                <input type="text" value={siteForm.companyName} onChange={e => setSiteForm(p => ({ ...p, companyName: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Slogan</label>
@@ -95,7 +127,7 @@ const AdminSettings: React.FC = () => {
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">WhatsApp Principal</label>
-                  <input type="text" defaultValue={APP_CONFIG.whatsapp} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                  <input type="text" value={siteForm.whatsapp} onChange={e => setSiteForm(p => ({ ...p, whatsapp: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
                 </div>
               </div>
 
@@ -105,7 +137,7 @@ const AdminSettings: React.FC = () => {
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">E-mail de Contato</label>
-                  <input type="email" defaultValue={APP_CONFIG.email} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                  <input type="email" value={siteForm.email} onChange={e => setSiteForm(p => ({ ...p, email: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
                 </div>
               </div>
 
@@ -115,7 +147,7 @@ const AdminSettings: React.FC = () => {
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Endereço Físico</label>
-                  <input type="text" defaultValue={APP_CONFIG.address} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                  <input type="text" value={siteForm.address} onChange={e => setSiteForm(p => ({ ...p, address: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
                 </div>
               </div>
             </div>
@@ -127,11 +159,11 @@ const AdminSettings: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2"><Globe className="w-3.5 h-3.5" /> Instagram</label>
-                <input type="text" defaultValue={APP_CONFIG.social.instagram} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                <input type="text" value={siteForm.instagram} onChange={e => setSiteForm(p => ({ ...p, instagram: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
               </div>
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2"><Globe className="w-3.5 h-3.5" /> Facebook</label>
-                <input type="text" defaultValue={APP_CONFIG.social.facebook} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                <input type="text" value={siteForm.facebook} onChange={e => setSiteForm(p => ({ ...p, facebook: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
               </div>
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2"><Globe className="w-3.5 h-3.5" /> LinkedIn</label>
