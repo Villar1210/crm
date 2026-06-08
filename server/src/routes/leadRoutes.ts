@@ -44,10 +44,10 @@ const upload = multer({
 });
 
 router.get('/', getLeads);
-router.delete('/', deleteAllLeads); // Bulk delete by ownerId
+router.delete('/', authenticate, requireRole('super_admin'), deleteAllLeads);
 router.post('/', createLead);
 router.put('/:id', updateLead);
-router.delete('/:id', deleteLead);
+router.delete('/:id', authenticate, requireRole('super_admin'), deleteLead);
 
 // Upload Route
 router.post('/:id/documents', upload.single('file'), uploadDocument);

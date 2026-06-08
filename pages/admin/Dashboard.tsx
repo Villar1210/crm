@@ -46,7 +46,7 @@ const AdminDashboard: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const user = api.auth.getCurrentUser();
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  const isAdmin = user?.role === 'super_admin';
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentDate(new Date()), 60_000);

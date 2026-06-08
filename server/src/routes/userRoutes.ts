@@ -21,10 +21,10 @@ const avatarStorage = multer.diskStorage({
 const avatarUpload = multer({ storage: avatarStorage, limits: { fileSize: 2 * 1024 * 1024 } });
 
 router.get('/', getUsers);
-router.post('/', createUser);
+router.post('/', authenticate, requireRole('super_admin'), createUser);
 router.put('/:id', updateUser);
 router.post('/:id/reset-password', resetUserPassword);
-router.delete('/:id', deleteUser);
+router.delete('/:id', authenticate, requireRole('super_admin'), deleteUser);
 router.post('/:id/avatar', avatarUpload.single('avatar'), uploadAvatar);
 
 export default router;

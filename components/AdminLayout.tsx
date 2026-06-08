@@ -15,8 +15,9 @@ const AdminLayout: React.FC = () => {
     const navigate = useNavigate();
     const [user, setUser] = useState<User | null>(null);
     const { currentUser, setCurrentUser } = useAuth();
-    const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
-    const isSuperAdmin = currentUser?.role === 'super_admin';
+    const isAdmin = user?.role === 'super_admin';
+    const isSuperAdmin = isAdmin;
+    
 
     // Mobile Menu State
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

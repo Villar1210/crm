@@ -6,6 +6,6 @@ const router = Router();
 router.get('/', getProperties);
 router.post('/', createProperty);
 router.put('/:id', updateProperty);
-router.delete('/:id', deleteProperty);
+router.delete('/:id', authenticate, requireRole('super_admin'), deleteProperty);
 
 export default router;
