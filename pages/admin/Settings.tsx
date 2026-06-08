@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Globe, Phone, Mail, MapPin, ToggleLeft, ToggleRight, Layout, AlertTriangle } from 'lucide-react';
 import { APP_CONFIG } from '../../constants';
+import { useAuth } from '../../contexts/AuthContext';
 import { useSiteConfig } from '../../hooks/useSiteConfig';
 import { ApiClient } from '../../services/api';
 import { api } from '../../services/api';
@@ -8,6 +9,8 @@ import { CRMSettings } from '../../types';
 
 const AdminSettings: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const { currentUser } = useAuth();
+  const isSuperAdmin = currentUser?.role === 'super_admin';
   const { config: siteConfig } = useSiteConfig();
   const [siteForm, setSiteForm] = useState({
     companyName: APP_CONFIG.companyName,
@@ -53,6 +56,10 @@ const AdminSettings: React.FC = () => {
   }, []);
 
   const handleSave = async () => {
+    if (!isSuperAdmin) {
+      alert('Apenas o Super Admin pode alterar as configurações do site.');
+      return;
+    }
     setLoading(true);
     try {
       await Promise.all([
@@ -104,11 +111,18 @@ const AdminSettings: React.FC = () => {
 
           {/* Company Info */}
           <section>
-            <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Identidade Visual & Empresa</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b flex items-center gap-2">
+              Identidade Visual & Empresa
+              {!isSuperAdmin && (
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                  🔒 Apenas Super Admin
+                </span>
+              )}
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Nome da Imobiliária</label>
-                <input type="text" value={siteForm.companyName} onChange={e => setSiteForm(p => ({ ...p, companyName: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" />
+                <input type="text" value={siteForm.companyName} onChange={e => isSuperAdmin && setSiteForm(p => ({ ...p, companyName: e.target.value }))} readOnly={!isSuperAdmin} className={!isSuperAdmin ? 'opacity-60 cursor-not-allowed' : ''} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Slogan</label>
@@ -127,7 +141,7 @@ const AdminSettings: React.FC = () => {
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">WhatsApp Principal</label>
-                  <input type="text" value={siteForm.whatsapp} onChange={e => setSiteForm(p => ({ ...p, whatsapp: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                  <input type="text" value={siteForm.whatsapp} onChange={e => isSuperAdmin && setSiteForm(p => ({ ...p, whatsapp: e.target.value }))} readOnly={!isSuperAdmin} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
                 </div>
               </div>
 
@@ -137,7 +151,7 @@ const AdminSettings: React.FC = () => {
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">E-mail de Contato</label>
-                  <input type="email" value={siteForm.email} onChange={e => setSiteForm(p => ({ ...p, email: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                  <input type="email" value={siteForm.email} onChange={e => isSuperAdmin && setSiteForm(p => ({ ...p, email: e.target.value }))} readOnly={!isSuperAdmin} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
                 </div>
               </div>
 
@@ -147,7 +161,7 @@ const AdminSettings: React.FC = () => {
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Endereço Físico</label>
-                  <input type="text" value={siteForm.address} onChange={e => setSiteForm(p => ({ ...p, address: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                  <input type="text" value={siteForm.address} onChange={e => isSuperAdmin && setSiteForm(p => ({ ...p, address: e.target.value }))} readOnly={!isSuperAdmin} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
                 </div>
               </div>
             </div>
@@ -159,11 +173,11 @@ const AdminSettings: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2"><Globe className="w-3.5 h-3.5" /> Instagram</label>
-                <input type="text" value={siteForm.instagram} onChange={e => setSiteForm(p => ({ ...p, instagram: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                <input type="text" value={siteForm.instagram} onChange={e => isSuperAdmin && setSiteForm(p => ({ ...p, instagram: e.target.value }))} readOnly={!isSuperAdmin} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
               </div>
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2"><Globe className="w-3.5 h-3.5" /> Facebook</label>
-                <input type="text" value={siteForm.facebook} onChange={e => setSiteForm(p => ({ ...p, facebook: e.target.value }))} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                <input type="text" value={siteForm.facebook} onChange={e => isSuperAdmin && setSiteForm(p => ({ ...p, facebook: e.target.value }))} readOnly={!isSuperAdmin} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
               </div>
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2"><Globe className="w-3.5 h-3.5" /> LinkedIn</label>
