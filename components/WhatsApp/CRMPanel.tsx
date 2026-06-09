@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, PhoneCall, Calendar, DollarSign, StickyNote } from 'lucide-react';
+import { ChevronRight, PhoneCall, Calendar, DollarSign, StickyNote } from 'lucide-react';
 import { WhatsAppChat } from '../../types';
 
 interface CRMPanelProps {
@@ -9,15 +9,24 @@ interface CRMPanelProps {
 }
 
 export const CRMPanel: React.FC<CRMPanelProps> = ({ chat, isVisible, onClose }) => {
-    if (!chat || !isVisible) return null;
+    if (!chat) return null;
 
     return (
-        <div className="w-[23.75rem] bg-white border-l border-gray-200 flex flex-col h-full overflow-y-auto custom-scrollbar shadow-lg z-20">
+        <div className={`relative flex shrink-0 h-full transition-all duration-300 ${isVisible ? 'w-[280px]' : 'w-0'}`}>
+            {/* Toggle tab — always visible on the left edge */}
+            <button
+                onClick={onClose}
+                title={isVisible ? 'Recolher painel' : 'Expandir painel'}
+                className="absolute -left-5 top-1/2 -translate-y-1/2 z-30 w-5 h-14 bg-white border border-gray-200 rounded-l-lg flex items-center justify-center text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-colors shadow-sm"
+            >
+                <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-300 ${isVisible ? 'rotate-0' : 'rotate-180'}`} />
+            </button>
+
+            {/* Panel content */}
+            {isVisible && (
+        <div className="w-[280px] shrink-0 bg-white border-l border-gray-200 flex flex-col h-full overflow-y-auto custom-scrollbar z-20">
             {/* Header Profile */}
             <div className="bg-white p-6 flex flex-col items-center border-b border-gray-100 shadow-sm relative">
-                <button onClick={onClose} className="absolute left-4 top-4 text-gray-400 hover:text-gray-600">
-                    <X className="w-5 h-5" />
-                </button>
                 <img src={chat.avatar || `https://ui-avatars.com/api/?name=${chat.name}`} className="w-24 h-24 rounded-full object-cover mb-3 border-4 border-gray-50" alt="" />
                 <h3 className="text-xl font-bold text-gray-800">{chat.name || chat.phoneNumber}</h3>
                 <p className="text-gray-500 text-sm mb-4">{chat.phoneNumber}</p>
@@ -67,6 +76,8 @@ export const CRMPanel: React.FC<CRMPanelProps> = ({ chat, isVisible, onClose }) 
                     ></textarea>
                 </div>
             </div>
+        </div>
+            )}
         </div>
     );
 };
