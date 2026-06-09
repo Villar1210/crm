@@ -11,18 +11,34 @@ interface ChatListProps {
 }
 
 export const ChatList: React.FC<ChatListProps> = ({ chats, selectedChatId, onSelectChat, searchQuery, onSearchChange }) => {
-    // Format helper
+    // Formata horário
     const formatTime = (isoString: string) => {
         try {
             const date = new Date(isoString);
-            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         } catch (e) {
             return '';
         }
     };
 
+    // Mostra nome amigável: usa chat.name se não for um JID puro
+    const displayName = (chat: { name: string; phoneNumber: string }) => {
+        const n = chat.name || '';
+        // Se o nome é igual ao número ou parece um JID, usa o número formatado
+        if (!n || n === chat.phoneNumber || n.includes('@')) {
+            const p = chat.phoneNumber.replace(/\D/g, '');
+            if (p.startsWith('55') && p.length >= 12) {
+                const ddd = p.slice(2, 4);
+                const num = p.slice(4);
+                return `(${ddd}) ${num.slice(0, num.length > 8 ? 5 : 4)}-${num.slice(num.length > 8 ? 5 : 4)}`;
+            }
+            return chat.phoneNumber;
+        }
+        return n;
+    };
+
     return (
-        <div className="w-[400px] flex flex-col h-full border-r border-[#d1d7db] bg-white">
+        <div className="w-[320px] shrink-0 flex flex-col h-full border-r border-[#d1d7db] bg-white">
             {/* Header */}
             <div className="h-[60px] bg-white px-4 flex items-center justify-between shrink-0">
                 <h1 className="text-[22px] font-bold text-[#111b21]">Conversas</h1>
@@ -78,14 +94,14 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, selectedChatId, onSel
 
                             <div className="flex-1 min-w-0 h-full flex flex-col justify-center border-b border-[#f0f2f5] group-last:border-none pr-1">
                                 <div className="flex justify-between items-baseline mb-0.5">
-                                    <span className="text-[17px] text-[#111b21] font-normal truncate">{chat.name || chat.phoneNumber}</span>
+                                    <span className="text-[17px] text-[#111b21] font-normal truncate">{displayName(chat)}</span>
                                     <span className={`text-[12px] ${chat.unreadCount > 0 ? 'text-[#00a884] font-medium' : 'text-[#667781]'}`}>
                                         {formatTime(chat.lastMessageTime)}
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <p className="text-[14px] text-[#667781] truncate max-w-[90%]">
-                                        {chat.lastMessage}
+                                        {chat.lastMessage === '[mídia]' ? '' : chat.lastMessage}
                                     </p>
                                     <div className="flex flex-col items-end gap-1">
                                         {chat.unreadCount > 0 && (
