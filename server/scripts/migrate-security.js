@@ -13,6 +13,7 @@ async function addCol(table, col, def) {
 }
 
 async function main() {
+    // User security fields
     await addCol('User','isActive','BOOLEAN NOT NULL DEFAULT 1');
     await addCol('User','mustChangePassword','BOOLEAN NOT NULL DEFAULT 0');
     await addCol('User','lastLogin','DATETIME');
@@ -21,6 +22,12 @@ async function main() {
     await addCol('User','twoFactorSecret','TEXT');
     await addCol('User','twoFactorEnabled','BOOLEAN NOT NULL DEFAULT 0');
     await addCol('User','backupCodes','TEXT');
+    // SystemSettings extra fields
+    await addCol('SystemSettings','header','TEXT');
+    await addCol('SystemSettings','footer','TEXT');
+    await addCol('SystemSettings','notifications','TEXT');
+    await addCol('SystemSettings','features','TEXT');
+    // LoginLog table
     try {
         await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "LoginLog" ("id" TEXT NOT NULL PRIMARY KEY,"userId" TEXT,"email" TEXT NOT NULL,"ip" TEXT,"userAgent" TEXT,"success" BOOLEAN NOT NULL,"failReason" TEXT,"createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
         console.log('OK LoginLog');
