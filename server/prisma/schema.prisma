@@ -20,10 +20,7 @@ model User {
   team      String?
   avatar    String?
   phone     String?
-  cpf               String?
-  creci             String?
-  mustChangePassword Boolean  @default(false)
-  createdAt         DateTime @default(now())
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   leads             Lead[]
@@ -36,9 +33,20 @@ model User {
 
   createdPersons Person[]     @relation("PersonCreator")
   auditLogs      AuditLog[]
+  loginLogs      LoginLog[]
   settings       String? // JSON: { notifications: {}, theme: '', ... }
   accountId      String?
   account        SaasAccount? @relation("AccountUsers", fields: [accountId], references: [id])
+
+  // Security fields
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(false)
+  lastLogin          DateTime?
+  loginAttempts      Int       @default(0)
+  lockedUntil        DateTime?
+  twoFactorSecret    String?
+  twoFactorEnabled   Boolean   @default(false)
+  backupCodes        String?   // JSON array of hashed backup codes
 }
 
 model SystemSettings {
@@ -47,6 +55,8 @@ model SystemSettings {
   integrations String? // JSON: { docusign: {}, google: {} }
   security     String? // JSON: { passwordPolicy: {}, 2fa: {} }
   api          String? // JSON: { tokens: {} }
+  header       String? // JSON: { logoUrl, companyName, phone, email, navLinks: [], ctaLabel, ctaUrl }
+  footer       String? // JSON: { address, copyright, socialLinks: { facebook, instagram, whatsapp, youtube }, columns: [] }
 
   updatedAt DateTime @updatedAt
 }
@@ -104,10 +114,7 @@ model AttendanceEvent {
   timestamp DateTime
   name      String?
   phone     String?
-  cpf               String?
-  creci             String?
-  mustChangePassword Boolean  @default(false)
-  createdAt         DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([ownerId, messageId])
   @@index([ownerId, timestamp])
@@ -966,6 +973,21 @@ model AuditLog {
   tenantId String?
 
   createdAt DateTime @default(now())
+}
+
+model LoginLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email      String
+  ip         String?
+  userAgent  String?
+  success    Boolean
+  failReason String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model PipelineConfig {
