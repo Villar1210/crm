@@ -1,27 +1,39 @@
 import { ApiClient } from './api';
 import { Lead, LeadStatus } from '../types';
+import { API_BASE_URL } from './apiConfig';
 
-const getCurrentUserId = (): string | null => {
+// Decode userId from stored JWT token
+function getStoredUserId(): string | null {
     try {
-        const stored = localStorage.getItem('user') || localStorage.getItem('novamorada_user');
-        if (!stored) return null;
-        const user = JSON.parse(stored);
-        return user?.id || null;
+        const token = localStorage.getItem('token');
+        if (!token) return null;
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.userId || null;
     } catch {
         return null;
     }
-};
+}
 
 export const leadService = {
     getAll: async (): Promise<Lead[]> => {
-        const ownerId = getCurrentUserId();
-        const query = ownerId ? `?ownerId=${ownerId}` : '';
-        return ApiClient.get<Lead[]>(`/leads${query}`);
+        const userId = getStoredUserId();
+        // The API requires ?ownerId or ?phone to avoid returning everyone's data
+        const params = userId ? `?ownerId=${encodeURIComponent(userId)}` : '';
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE_URL}/leads${params}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return [];
+        return res.json();
     },
 
     create: async (lead: Partial<Lead>): Promise<Lead> => {
-        const ownerId = getCurrentUserId();
-        return ApiClient.post<Lead>('/leads', { ...lead, ownerId: lead.ownerId || ownerId });
+        // Auto-assign to current user if no ownerId set
+        const userId = getStoredUserId();
+        const payload = { ...lead };
+        if (!payload.ownerId && userId) payload.ownerId = userId as any;
+        if (!payload.assignedTo && userId) payload.assignedTo = userId as any;
+        return ApiClient.post<Lead>('/leads', payload);
     },
 
     update: async (id: string, data: Partial<Lead>): Promise<Lead> => {
@@ -37,9 +49,7 @@ export const leadService = {
         return ApiClient.delete(`/leads/${id}`);
     },
 
-    // Method legacy for compatibility, can be removed later or adapted
     importLeads: async (_leads: any[]) => {
-        // Setup bulk import endpoint later
         return true;
     }
 };
