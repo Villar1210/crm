@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { authenticate, requireRole } from '../middleware/auth';
 import { uploadAvatar, getUsers, updateUser, createUser, resetUserPassword, deleteUser } from '../controllers/userController';
 
 const router = Router();
