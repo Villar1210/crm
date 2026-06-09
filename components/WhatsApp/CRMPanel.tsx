@@ -3,9 +3,9 @@ import { ChevronRight, ChevronDown, PhoneCall, Calendar, DollarSign, StickyNote,
 import { WhatsAppChat } from '../../types';
 import { API_BASE_URL } from '../../services/apiConfig';
 
-// Pipeline stages from DEFAULT_PIPELINE (mirrors constants.ts)
+// Pipeline stages — must match DEFAULT_PIPELINE in constants.ts exactly
+// 'Novo' is NOT in DEFAULT_PIPELINE columns, so we start with 'Em Triagem'
 const PIPELINE_STAGES = [
-    { id: 'Novo',             label: 'Novo',              color: '#6366f1' },
     { id: 'Em Triagem',       label: 'Em Atendimento',    color: '#3b82f6' },
     { id: 'Qualificado',      label: 'Qualificado',       color: '#06b6d4' },
     { id: 'Visita Agendada',  label: 'Visita Agendada',   color: '#8b5cf6' },
@@ -89,7 +89,7 @@ interface CRMPanelProps {
 }
 
 export const CRMPanel: React.FC<CRMPanelProps> = ({ chat, isVisible, onClose }) => {
-    const [stage, setStage] = useState('Novo');
+    const [stage, setStage] = useState('Em Triagem');
     const [dealValue, setDealValue] = useState('0,00');
     const [notes, setNotes] = useState('');
     const [stageSaving, setStageSaving] = useState(false);
@@ -113,7 +113,7 @@ export const CRMPanel: React.FC<CRMPanelProps> = ({ chat, isVisible, onClose }) 
     // Load lead data when chat changes
     useEffect(() => {
         if (!chat) return;
-        setStage('Novo');
+        setStage('Em Triagem');
         setDealValue('0,00');
         setNotes('');
         setLeadId(null);
