@@ -3,7 +3,7 @@ import express from 'express';
 import path from 'path';
 import cors from 'cors';
 import http from 'http';
-import './worker'; // Start Worker
+// // import './worker.js'; // Start Worker
 import { whatsappService } from './services/whatsappService';
 
 process.on('unhandledRejection', (reason, promise) => {
@@ -18,6 +18,10 @@ process.on('uncaughtException', (error) => {
 import { socketService } from './services/socketService';
 
 const app = express();
+
+// Trust Nginx reverse proxy (fixes express-rate-limit X-Forwarded-For warning)
+app.set('trust proxy', 1);
+
 const server = http.createServer(app);
 
 // Initialize Socket Service
@@ -40,7 +44,8 @@ app.use(cors({
         // Requests sem origin (curl, server-to-server, mobile) sao sempre permitidos
         if (!origin) return callback(null, true);
         if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-        return callback(new Error(`CORS: origin '${origin}' not allowed`));
+        // Reject silently — returning false sends a proper 403 without crashing the process
+        return callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -56,7 +61,7 @@ app.use((_req, res, next) => {
         "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data: https:; " +
         "font-src 'self' data:; " +
-        "connect-src 'self' https://graph.facebook.com https://api.linkedin.com wss:; " +
+        "connect-src 'self' https://ivillar.com.br https://graph.facebook.com https://api.linkedin.com wss:; " +
         "frame-ancestors 'self' https://web.whatsapp.com"
     );
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -106,6 +111,10 @@ import userRoutes from './routes/userRoutes';
 app.use('/api/users', userRoutes);
 import saasRoutes from './routes/saasRoutes';
 app.use('/api/saas', saasRoutes);
+import signatureRoutes from './routes/signatureRoutes';
+app.use('/api/signatures', signatureRoutes);
+import securityRoutes from './routes/securityRoutes';
+app.use('/api/security', securityRoutes);
 
 // Health Check
 app.get('/api/health', (_req, res) => {
@@ -114,8 +123,8 @@ app.get('/api/health', (_req, res) => {
 
 
 // Serve static files (Frontend)
-const buildPath = path.join(__dirname, '../../dist');
-const uploadsPath = path.join(__dirname, '../uploads');
+const buildPath = path.join(process.cwd() + '/src', '../../dist');
+const uploadsPath = path.join(process.cwd() + '/src', '../uploads');
 app.use('/uploads', express.static(uploadsPath));
 app.use(express.static(buildPath));
 
