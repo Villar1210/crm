@@ -53,11 +53,11 @@ jobs:
             echo "→ Gerando Prisma Client..."
             npx prisma generate
 
+            echo "→ Aplicando migrations de segurança..."
+            node scripts/migrate-security.js
+
             echo "→ Compilando TypeScript..."
             npm run build
-
-            echo "→ Rodando migrations..."
-            npx prisma migrate deploy
 
             # ── Reiniciar serviços ────────────────────────────────
             echo "→ Reiniciando PM2..."
@@ -69,7 +69,7 @@ jobs:
             systemctl reload nginx
 
             echo "=== Deploy concluído! ==="
-            echo "Acesse: https://ivillar.com.br/admin"
+            echo "Acesse: https://ivillar.com.br/admin/security"
 
       - name: Status
         if: always()
