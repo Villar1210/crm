@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronRight, PhoneCall, Calendar, DollarSign, StickyNote, X, Check, Loader2, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronRight, ChevronDown, PhoneCall, Calendar, DollarSign, StickyNote, X, Check, Loader2, ExternalLink } from 'lucide-react';
 import { WhatsAppChat } from '../../types';
 import { API_BASE_URL } from '../../services/apiConfig';
 
@@ -96,6 +96,19 @@ export const CRMPanel: React.FC<CRMPanelProps> = ({ chat, isVisible, onClose }) 
     const [stageSaved, setStageSaved] = useState(false);
     const [showSchedule, setShowSchedule] = useState(false);
     const [leadId, setLeadId] = useState<string | null>(null);
+    const [showStageDropdown, setShowStageDropdown] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+                setShowStageDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
 
     // Load lead data when chat changes
     useEffect(() => {
@@ -107,14 +120,17 @@ export const CRMPanel: React.FC<CRMPanelProps> = ({ chat, isVisible, onClose }) 
 
         const token = localStorage.getItem('token');
         // Try to find existing lead by phone number
-        fetch(`${API_BASE_URL}/leads?search=${encodeURIComponent(chat.phoneNumber)}&limit=1`, {
+        fetch(`${API_BASE_URL}/leads?limit=200`, {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then(r => r.json())
             .then(d => {
-                const leads = Array.isArray(d) ? d : (d.leads || []);
-                if (leads.length > 0) {
-                    const lead = leads[0];
+                const allLeads = Array.isArray(d) ? d : (d.leads || []);
+                const phone = chat.phoneNumber?.replace(/\D/g, '');
+                const lead = allLeads.find((l: any) =>
+                    l.phone && l.phone.replace(/\D/g, '').endsWith(phone?.slice(-8) || '')
+                );
+                if (lead) {
                     setLeadId(lead.id);
                     if (lead.status) setStage(lead.status);
                     if (lead.value) setDealValue(String(lead.value).replace('.', ','));
@@ -126,6 +142,7 @@ export const CRMPanel: React.FC<CRMPanelProps> = ({ chat, isVisible, onClose }) 
 
     const saveStage = async (newStage: string) => {
         setStage(newStage);
+        setShowStageDropdown(false); // always collapse after selection
         setStageSaved(false);
         const token = localStorage.getItem('token');
 
@@ -231,33 +248,54 @@ export const CRMPanel: React.FC<CRMPanelProps> = ({ chat, isVisible, onClose }) 
                     {/* CRM Info */}
                     <div className="p-4 space-y-4 bg-[#f7f8fa] flex-1">
 
-                        {/* Funnel Stage */}
-                        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        {/* Funnel Stage — dropdown */}
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100" ref={dropdownRef}>
                             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center justify-between">
                                 Etapa do Funil
-                                {stageSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
-                                {stageSaved && <Check className="w-3 h-3 text-green-500" />}
+                                <span className="flex items-center gap-1">
+                                    {stageSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
+                                    {stageSaved && <Check className="w-3 h-3 text-green-500" />}
+                                </span>
                             </h4>
-                            <div className="space-y-1">
-                                {PIPELINE_STAGES.map(s => (
-                                    <button
-                                        key={s.id}
-                                        onClick={() => saveStage(s.id)}
-                                        className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-colors ${
-                                            stage === s.id
-                                                ? 'bg-indigo-600 text-white'
-                                                : 'hover:bg-gray-100 text-gray-700'
-                                        }`}
-                                    >
-                                        <span
-                                            className="w-2 h-2 rounded-full shrink-0"
-                                            style={{ backgroundColor: stage === s.id ? '#fff' : s.color }}
-                                        />
-                                        {s.label}
-                                        {stage === s.id && <Check className="w-3 h-3 ml-auto" />}
-                                    </button>
-                                ))}
-                            </div>
+
+                            {/* Selected stage button */}
+                            <button
+                                onClick={() => setShowStageDropdown(v => !v)}
+                                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border border-gray-200 hover:border-indigo-400 transition-colors text-sm font-medium text-gray-700 bg-gray-50"
+                            >
+                                <span className="flex items-center gap-2">
+                                    <span
+                                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                                        style={{ backgroundColor: PIPELINE_STAGES.find(s => s.id === stage)?.color || '#6366f1' }}
+                                    />
+                                    {PIPELINE_STAGES.find(s => s.id === stage)?.label || stage}
+                                </span>
+                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showStageDropdown ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {/* Dropdown list */}
+                            {showStageDropdown && (
+                                <div className="mt-1 border border-gray-200 rounded-lg overflow-hidden shadow-lg z-50 bg-white">
+                                    {PIPELINE_STAGES.map(s => (
+                                        <button
+                                            key={s.id}
+                                            onClick={() => saveStage(s.id)}
+                                            className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2 transition-colors ${
+                                                stage === s.id
+                                                    ? 'bg-indigo-600 text-white font-semibold'
+                                                    : 'hover:bg-indigo-50 text-gray-700'
+                                            }`}
+                                        >
+                                            <span
+                                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                                style={{ backgroundColor: stage === s.id ? '#fff' : s.color }}
+                                            />
+                                            {s.label}
+                                            {stage === s.id && <Check className="w-3.5 h-3.5 ml-auto" />}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Deal Value */}
