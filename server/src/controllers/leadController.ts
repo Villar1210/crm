@@ -170,9 +170,15 @@ export const getLeads = async (req: Request, res: Response) => {
         // DEBUG: Explicitly log the request params to trace leakage
         console.log('[API] getLeads request:', { phone, name, query, ownerId });
 
-        // STRICT SECURITY: If this is a general fetch (no specific phone) and NO ownerId is provided,
-        // return EMPTY to prevent showing all database contacts to an unidentified user.
-        if (!phone && !ownerId) {
+        // Decode JWT role to allow admins to see all leads
+        let reqRole = 'agent';
+        try {
+            const tok = (req.headers.authorization || '').replace('Bearer ', '');
+            const p = JSON.parse(Buffer.from(tok.split('.')[1], 'base64').toString());
+            reqRole = p.role || 'agent';
+        } catch {}
+        const isAdmin = reqRole === 'super_admin' || reqRole === 'admin';
+        if (!phone && !ownerId && !isAdmin) {
             console.warn('[API] Blocked global fetch without ownerId');
             return res.json([]);
         }
@@ -201,7 +207,8 @@ export const getLeads = async (req: Request, res: Response) => {
             whereClause.OR = orFilters;
         }
         if (ownerId) {
-            whereClause.ownerId = String(ownerId);
+            const uid = String(ownerId);
+            whereClause.OR = [{ ownerId: uid }, { assignedTo: uid }];
         }
 
         let leads;
