@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { QRCodeCanvas } from 'qrcode.react';
-import { Loader2, Smartphone, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Loader2, Smartphone } from 'lucide-react';
 
 import { api } from '../../services/api';
 import { WhatsAppLayout } from '../../components/WhatsApp/Layout';
@@ -14,19 +13,26 @@ import { whatsappService } from '../../services/whatsappService';
 import { WhatsAppChat } from '../../types';
 
 const WhatsAppStation: React.FC = () => {
-    // Persist mode in localStorage (Must be declared first to be used in conditionals)
+    // ── ALL hooks must be declared before any conditional return ──────────────
+
+    // Persist mode in localStorage
     const [integrationMode, setIntegrationMode] = useState<'platform' | 'official' | 'extension'>(() => {
         const saved = localStorage.getItem('whatsapp_mode');
         return (saved as 'platform' | 'official' | 'extension') || 'platform';
     });
 
-    const handleSaveMode = (mode: 'platform' | 'official' | 'extension') => {
-        setIntegrationMode(mode);
-        localStorage.setItem('whatsapp_mode', mode);
-        setShowConfig(false);
-    };
+    // Connection State
+    const { qr, isReady, socket, status } = useWhatsApp();
 
-    // New: Sync with Global CRM Settings
+    // UI State
+    const [chats, setChats] = useState<WhatsAppChat[]>([]);
+    const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showRightSidebar, setShowRightSidebar] = useState(true);
+    const [loadingChats, setLoadingChats] = useState(false);
+    const [showConfig, setShowConfig] = useState(false);
+
+    // Sync with Global CRM Settings
     useEffect(() => {
         const syncSettings = async () => {
             try {
@@ -42,24 +48,14 @@ const WhatsAppStation: React.FC = () => {
         syncSettings();
     }, []);
 
-    // Connection State
-    const { qr, isReady, socket, status } = useWhatsApp();
-
-    // UI State
-    const [chats, setChats] = useState<WhatsAppChat[]>([]);
-    const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [showRightSidebar, setShowRightSidebar] = useState(true);
-    const [loadingChats, setLoadingChats] = useState(false);
-    console.log(loadingChats); // Debug loading state
-
-    // Initial Load & Socket Events
+    // Load chats when WhatsApp is ready
     useEffect(() => {
         if (isReady) {
             loadChats();
         }
     }, [isReady]);
 
+    // Listen for new messages via socket
     useEffect(() => {
         if (socket) {
             socket.on('whatsapp_message', () => {
@@ -72,60 +68,89 @@ const WhatsAppStation: React.FC = () => {
         };
     }, [socket]);
 
+    // Load messages when a chat is selected
+    useEffect(() => {
+        if (selectedChatId) {
+            loadMessages(selectedChatId);
+        }
+    }, [selectedChatId]);
+
+    // ── Handlers ──────────────────────────────────────────────────────────────
+
+    const handleSaveMode = (mode: 'platform' | 'official' | 'extension') => {
+        setIntegrationMode(mode);
+        localStorage.setItem('whatsapp_mode', mode);
+        setShowConfig(false);
+    };
+
     const loadChats = async () => {
         setLoadingChats(true);
         const data = await whatsappService.getChats();
         if (data && Array.isArray(data)) {
-            // Sort by time
-            const sorted = data.sort((a, b) => (b.lastMessageTime || '').localeCompare(a.lastMessageTime || ''));
+            const sorted = data.sort((a, b) =>
+                (b.lastMessageTime || '').localeCompare(a.lastMessageTime || '')
+            );
             setChats(sorted);
         }
         setLoadingChats(false);
     };
 
-    const handleSendMessage = async (text: string) => {
-        const chat = chats.find(c => c.id === selectedChatId);
-        if (!chat) return;
-
-        // Optimistic Update (Optional)
-        // ...
-
-        const success = await whatsappService.sendMessage(chat.phoneNumber, text);
-        if (success) {
-            loadChats(); // Refresh to show sent message
-        } else {
-            showToast('Falha ao enviar mensagem. Verifique a conexão.', 'err');
+    const loadMessages = async (chatId: string) => {
+        const messages = await whatsappService.getMessages(chatId);
+        if (messages) {
+            setChats(prev =>
+                prev.map(c => (c.id === chatId ? { ...c, messages } : c))
+            );
         }
     };
 
-    // Derived State
+    const handleSendMessage = async (text: string) => {
+        const chat = chats.find(c => c.id === selectedChatId);
+        if (!chat) return;
+        const success = await whatsappService.sendMessage(chat.phoneNumber, text);
+        if (success) {
+            loadChats();
+        } else {
+            alert('Falha ao enviar mensagem');
+        }
+    };
+
+    // ── Derived State ─────────────────────────────────────────────────────────
+
     const filteredChats = chats.filter(c =>
         (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (c.phoneNumber || '').includes(searchQuery)
     );
     const selectedChat = chats.find(c => c.id === selectedChatId) || null;
+    console.log('[WhatsApp] loadingChats:', loadingChats); // debug
 
-    // --- RENDER: CONNECT SCREEN (Only for Platform Mode) ---
+    // ── RENDER: CONNECT SCREEN (only Platform mode, not yet ready) ────────────
     if (integrationMode === 'platform' && !isReady) {
         return (
             <div className="flex h-screen bg-[#111b21] items-center justify-center font-sans text-white">
                 <div className="bg-white text-gray-800 p-8 rounded-xl shadow-2xl flex flex-col items-center max-w-md w-full text-center">
                     <div className="mb-6 relative">
                         {qr ? (
-                            <div className="border-4 border-white shadow-lg">
-                                <QRCodeCanvas value={qr} size={256} />
+                            /* qr já é uma data-URL PNG gerada pelo backend — exibe direto */
+                            <div className="border-4 border-white shadow-lg rounded">
+                                <img
+                                    src={qr}
+                                    alt="QR Code WhatsApp"
+                                    width={256}
+                                    height={256}
+                                    className="block"
+                                />
                             </div>
                         ) : (
                             <div className="w-64 h-64 bg-gray-100 animate-pulse flex items-center justify-center rounded">
                                 <Loader2 className="w-12 h-12 text-gray-400 animate-spin" />
                             </div>
                         )}
-                        {/* Status Overlay */}
-                        {/* Status Overlay */}
-                        <div className="mt-4 font-bold text-gray-600">
-                            {status === 'connected' && !qr ? 'Carregando WhatsApp...' : ''}
-                            {status === 'connected' && qr ? 'Aguardando QR Code...' : ''}
-                            {status === 'disconnected' && ' Conectando ao servidor...'}
+
+                        <div className="mt-4 font-bold text-gray-600 min-h-[1.5rem]">
+                            {status === 'disconnected' && 'Conectando ao servidor...'}
+                            {status === 'connected' && !qr && 'Aguardando QR Code...'}
+                            {status === 'connected' && qr && 'Escaneie o QR Code abaixo'}
                             {status === 'restoring' && 'Conectado! Sincronizando conversas...'}
                         </div>
                     </div>
@@ -143,31 +168,7 @@ const WhatsAppStation: React.FC = () => {
         );
     }
 
-    // Fetch messages when a chat is selected
-    useEffect(() => {
-        if (selectedChatId) {
-            loadMessages(selectedChatId);
-        }
-    }, [selectedChatId]);
-
-    const loadMessages = async (chatId: string) => {
-        const messages = await whatsappService.getMessages(chatId);
-        if (messages) {
-            setChats(prev => prev.map(c =>
-                c.id === chatId ? { ...c, messages: messages } : c
-            ));
-        }
-    };
-
-    const [showConfig, setShowConfig] = useState(false);
-    const [toast, setToast] = useState<{msg: string, type: 'ok'|'err'} | null>(null);
-
-    const showToast = (msg: string, type: 'ok'|'err' = 'ok') => {
-        setToast({ msg, type });
-        setTimeout(() => setToast(null), 3500);
-    };
-
-    // --- RENDER: MAIN INTERFACE ---
+    // ── RENDER: MAIN INTERFACE ────────────────────────────────────────────────
     return (
         <>
             <WhatsAppLayout onConfig={() => setShowConfig(true)}>
@@ -212,7 +213,7 @@ const WhatsAppStation: React.FC = () => {
                                 <ul className="space-y-3 text-gray-600">
                                     <li className="flex items-start gap-3">
                                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-2"></div>
-                                        <span>Abra o <a href="https://web.whatsapp.com" target="_blank" className="text-blue-600 hover:underline">web.whatsapp.com</a> em uma nova aba.</span>
+                                        <span>Abra o <a href="https://web.whatsapp.com" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">web.whatsapp.com</a> em uma nova aba.</span>
                                     </li>
                                     <li className="flex items-start gap-3">
                                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-2"></div>
@@ -242,17 +243,6 @@ const WhatsAppStation: React.FC = () => {
                 currentMode={integrationMode}
                 onSave={handleSaveMode}
             />
-            {toast && (
-                <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white ${
-                    toast.type === 'ok' ? 'bg-green-600' : 'bg-red-600'
-                }`}>
-                    {toast.type === 'ok' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                    {toast.msg}
-                    <button onClick={() => setToast(null)} className="ml-1 opacity-70 hover:opacity-100">
-                        <X className="w-3.5 h-3.5" />
-                    </button>
-                </div>
-            )}
         </>
     );
 };
