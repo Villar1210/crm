@@ -200,7 +200,7 @@ const WhatsAppStation: React.FC = () => {
                         <CRMPanel
                             chat={selectedChat}
                             isVisible={showRightSidebar && !!selectedChat}
-                            onClose={() => setShowRightSidebar(false)}
+                            onClose={() => setShowRightSidebar(v => !v)}
                         />
                     </>
                 )}
