@@ -143,49 +143,75 @@ export const CRMPanel: React.FC<CRMPanelProps> = ({ chat, isVisible, onClose }) 
 
     const saveStage = async (newStage: string) => {
         setStage(newStage);
-        setShowStageDropdown(false); // always collapse after selection
+        setShowStageDropdown(false);
         setStageSaved(false);
+        setStageSaving(true);
+
         const token = localStorage.getItem('token');
 
-        if (leadId) {
-            setStageSaving(true);
-            try {
-                await fetch(`${API_BASE_URL}/leads/${leadId}`, {
+        // Decode userId from JWT
+        let userId: string | null = null;
+        try {
+            const payload = JSON.parse(atob(token!.split('.')[1]));
+            userId = payload.userId || null;
+        } catch { /* ignore */ }
+
+        const phone = chat?.phoneNumber?.replace(/\D/g, '') || '';
+
+        try {
+            // Step 1: Always do a fresh search to find existing lead
+            let existingId = leadId;
+
+            if (!existingId && phone) {
+                const searchRes = await fetch(`${API_BASE_URL}/leads?phone=${encodeURIComponent(phone)}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (searchRes.ok) {
+                    const found = await searchRes.json();
+                    const leads = Array.isArray(found) ? found : [];
+                    if (leads.length > 0) {
+                        existingId = leads[0].id;
+                        setLeadId(leads[0].id);
+                    }
+                }
+            }
+
+            if (existingId) {
+                // Step 2a: Update existing lead
+                const upRes = await fetch(`${API_BASE_URL}/leads/${existingId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                     body: JSON.stringify({ status: newStage }),
                 });
-                setStageSaved(true);
-                setTimeout(() => setStageSaved(false), 2000);
-            } catch { /* ignore */ } finally { setStageSaving(false); }
-        } else {
-            // Create new lead from this WhatsApp contact
-            setStageSaving(true);
-            try {
-                // Decode userId from JWT token
-                let userId: string | null = null;
-                try {
-                    const payload = JSON.parse(atob(token!.split('.')[1]));
-                    userId = payload.userId || null;
-                } catch { /* ignore */ }
-
-                const res = await fetch(`${API_BASE_URL}/leads`, {
+                if (!upRes.ok) throw new Error(`Update failed: ${upRes.status}`);
+            } else {
+                // Step 2b: Create new lead
+                const createRes = await fetch(`${API_BASE_URL}/leads`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                     body: JSON.stringify({
                         name: chat?.name || chat?.phoneNumber,
-                        phone: chat?.phoneNumber?.replace(/\D/g, ''),
+                        phone,
                         status: newStage,
                         source: 'whatsapp',
                         assignedTo: userId,
                         ownerId: userId,
                     }),
                 });
-                const created = await res.json();
+                const created = await createRes.json();
+                if (!createRes.ok) throw new Error(`Create failed: ${createRes.status} - ${JSON.stringify(created)}`);
                 if (created?.id) setLeadId(created.id);
-                setStageSaved(true);
-                setTimeout(() => setStageSaved(false), 2000);
-            } catch { /* ignore */ } finally { setStageSaving(false); }
+            }
+
+            setStageSaved(true);
+            setTimeout(() => setStageSaved(false), 3000);
+
+        } catch (err) {
+            console.error('[CRMPanel] saveStage error:', err);
+            // Show error visually
+            setStageSaved(false);
+        } finally {
+            setStageSaving(false);
         }
     };
 
