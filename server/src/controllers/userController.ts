@@ -4,8 +4,6 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 // List Users
 export const getUsers = async (_req: Request, res: Response) => {
     try {
@@ -15,9 +13,7 @@ export const getUsers = async (_req: Request, res: Response) => {
                 name: true,
                 email: true,
                 role: true,
-                phone: true,
-                team: true,
-                avatar: true,
+                settings: true,
                 createdAt: true,
                 isActive: true,
                 lastLogin: true,
@@ -25,8 +21,7 @@ export const getUsers = async (_req: Request, res: Response) => {
                 lockedUntil: true,
                 twoFactorEnabled: true,
                 mustChangePassword: true,
-            },
-            orderBy: { createdAt: 'desc' }
+            }
         });
         res.json(users);
     } catch (error) {
@@ -34,53 +29,18 @@ export const getUsers = async (_req: Request, res: Response) => {
     }
 };
 
-// Create User (Admin)
-export const createUser = async (req: Request, res: Response) => {
-    try {
-        const { name, email, password, role, phone, team } = req.body;
-
-        if (!name || name.trim().length < 2)
-            return res.status(400).json({ error: 'Nome inválido' });
-        if (!email || !EMAIL_REGEX.test(email))
-            return res.status(400).json({ error: 'Email inválido' });
-        if (!password || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password))
-            return res.status(400).json({ error: 'Senha deve ter no mínimo 8 caracteres, uma letra maiúscula e um número' });
-
-        const exists = await prisma.user.findUnique({ where: { email } });
-        if (exists) return res.status(400).json({ error: 'E-mail já cadastrado' });
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const user = await prisma.user.create({
-            data: { name: name.trim(), email, password: hashedPassword, role: role || 'agent', phone: phone || null, team: team || null },
-            select: { id: true, name: true, email: true, role: true, phone: true, team: true, avatar: true, createdAt: true, isActive: true, mustChangePassword: true, twoFactorEnabled: true }
-        });
-
-        res.status(201).json(user);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to create user' });
-    }
-};
-
-// Update User
+// Update User (Role/Settings)
 export const updateUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { name, email, role, phone, team } = req.body;
-
-        if (email && !EMAIL_REGEX.test(email))
-            return res.status(400).json({ error: 'Email inválido' });
+        const { role, settings } = req.body;
 
         const user = await prisma.user.update({
             where: { id },
             data: {
-                ...(name && { name: name.trim() }),
-                ...(email && { email }),
-                ...(role && { role }),
-                ...(phone !== undefined && { phone: phone || null }),
-                ...(team !== undefined && { team: team || null }),
-            },
-            select: { id: true, name: true, email: true, role: true, phone: true, team: true, avatar: true, createdAt: true, isActive: true, mustChangePassword: true, twoFactorEnabled: true }
+                role,
+                settings: settings ? JSON.stringify(settings) : undefined
+            }
         });
 
         res.json(user);
@@ -89,44 +49,71 @@ export const updateUser = async (req: Request, res: Response) => {
     }
 };
 
-// Change Password
-export const changePassword = async (req: Request, res: Response) => {
+// Create User (Admin)
+export const createUser = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
-        const { currentPassword, newPassword } = req.body;
+        const { name, email, password, role } = req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        if (!newPassword || newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword))
-            return res.status(400).json({ error: 'Nova senha deve ter no mínimo 8 caracteres, uma letra maiúscula e um número' });
+        const user = await prisma.user.create({
+            data: {
+                name,
+                email,
+                password: hashedPassword,
+                role: role || 'agent',
+                mustChangePassword: true
+            }
+        });
 
-        const user = await prisma.user.findUnique({ where: { id } });
-        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-
-        // If currentPassword supplied, validate it (self-change). Admins can skip.
-        if (currentPassword) {
-            const valid = await bcrypt.compare(currentPassword, user.password);
-            if (!valid) return res.status(400).json({ error: 'Senha atual incorreta' });
-        }
-
-        const hashed = await bcrypt.hash(newPassword, 10);
-        await prisma.user.update({ where: { id }, data: { password: hashed } });
-
-        res.json({ ok: true });
+        res.json(user);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to change password' });
+        res.status(500).json({ error: 'Failed to create user' });
     }
 };
 
-// Delete User
+// Reset User Password (Admin)
+export const resetUserPassword = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { newPassword } = req.body;
+
+        if (!newPassword || newPassword.length < 8) {
+            return res.status(400).json({ error: 'Senha deve ter no mínimo 8 caracteres' });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await prisma.user.update({ where: { id }, data: { password: hashedPassword } });
+
+        res.json({ success: true, message: 'Senha alterada com sucesso' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to reset password' });
+    }
+};
+
+// Delete User (Admin)
 export const deleteUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-
-        const user = await prisma.user.findUnique({ where: { id } });
-        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-
         await prisma.user.delete({ where: { id } });
-        res.json({ ok: true });
+        res.status(204).send();
     } catch (error) {
         res.status(500).json({ error: 'Failed to delete user' });
+    }
+};
+
+export const uploadAvatar = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+
+        const avatarUrl = `/uploads/${req.file.filename}`;
+        const user = await prisma.user.update({
+            where: { id },
+            data: { avatar: avatarUrl }
+        });
+
+        res.json({ avatar: avatarUrl, user });
+    } catch (error) {
+        res.status(500).json({ error: 'Falha ao atualizar avatar' });
     }
 };
