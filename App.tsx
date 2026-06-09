@@ -1,10 +1,10 @@
 
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import AdminLayout from './components/AdminLayout';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { AuthProvider } from './contexts/AuthContext';
 // Public Pages
 import Home from './pages/Home';
 import Properties from './pages/Properties';
@@ -13,50 +13,55 @@ import Campaigns from './pages/Campaigns';
 import Jobs from './pages/Jobs';
 import FunnelLinkTree from './pages/FunnelLinkTree';
 import BuyerLogin from './pages/buyer/Login';
+import ChangePassword from './pages/ChangePassword';
+import Register from './pages/Register';
 import BuyerDashboard from './pages/buyer/Dashboard';
 import Contact from './pages/Contact';
 import About from './pages/About';
 import Advertise from './pages/Advertise';
 
 // Admin Pages
-import AdminDashboard from './pages/admin/Dashboard';
-import CRM from './pages/admin/CRM';
-import AdminCalendar from './pages/admin/Calendar';
-import PropertiesList from './pages/admin/PropertiesList';
-import PropertyForm from './pages/admin/PropertyForm';
-import AdminConfig from './pages/admin/AdminConfig';
-import CampaignsList from './pages/admin/CampaignsList';
-import CampaignForm from './pages/admin/CampaignForm';
-import JobsList from './pages/admin/JobsList';
-import Marketing from './pages/admin/Marketing';
-import WhatsAppStation from './pages/admin/WhatsAppStation';
-import SiteContent from './pages/admin/SiteContent';
-import PDFTools from './pages/admin/PDFTools';
-import AssinaturasPage from './pages/admin/assinaturas/index';
-import EnvelopeCreate from './pages/admin/assinaturas/EnvelopeCreate';
-import EnvelopeDetail from './pages/admin/assinaturas/EnvelopeDetail';
-import SignPage from './pages/assinar/SignPage';
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
+const CRM = lazy(() => import('./pages/admin/CRM'));
+const AdminCalendar = lazy(() => import('./pages/admin/Calendar'));
+const PropertiesList = lazy(() => import('./pages/admin/PropertiesList'));
+const PropertyForm = lazy(() => import('./pages/admin/PropertyForm'));
+const AdminSettings = lazy(() => import('./pages/admin/Settings'));
+const AdminConfig = lazy(() => import('./pages/admin/AdminConfig'));
+const SuperAdmin = lazy(() => import('./pages/admin/SuperAdmin'));
+const UsersList = lazy(() => import('./pages/admin/UsersList'));
+const CampaignsList = lazy(() => import('./pages/admin/CampaignsList'));
+const CampaignForm = lazy(() => import('./pages/admin/CampaignForm'));
+const JobsList = lazy(() => import('./pages/admin/JobsList'));
+const Marketing = lazy(() => import('./pages/admin/Marketing'));
+const WhatsAppStation = lazy(() => import('./pages/admin/WhatsAppStation'));
+const SiteContent = lazy(() => import('./pages/admin/SiteContent'));
+const PDFTools = lazy(() => import('./pages/admin/PDFTools'));
+const SignatureBuilder = lazy(() => import('./pages/admin/signatures/SignatureBuilder'));
+const AssinaturasWrapper = lazy(() => import('./pages/admin/assinaturas/AssinaturasWrapper'));
+const Security = lazy(() => import('./pages/admin/Security'));
+import { EnviarScreen } from './src/modules/enviar/EnviarScreen';
 
 import SuperAdminRoute from './routes/SuperAdminRoute';
 import AdminSaaSLayout from './pages/admin/saas/AdminSaaSLayout';
-import AdminSaaSDashboard from './pages/admin/saas/AdminSaaSDashboard';
-import AdminAccounts from './pages/admin/saas/AdminAccounts';
-import AdminAccountDetails from './pages/admin/saas/AdminAccountDetails';
-import AdminPlans from './pages/admin/saas/AdminPlans';
-import AdminModules from './pages/admin/saas/AdminModules';
-import AdminBilling from './pages/admin/saas/AdminBilling';
-import AdminSystemSettings from './pages/admin/saas/AdminSystemSettings';
+const AdminSaaSDashboard = lazy(() => import('./pages/admin/saas/AdminSaaSDashboard'));
+const AdminAccounts = lazy(() => import('./pages/admin/saas/AdminAccounts'));
+const AdminAccountDetails = lazy(() => import('./pages/admin/saas/AdminAccountDetails'));
+const AdminPlans = lazy(() => import('./pages/admin/saas/AdminPlans'));
+const AdminModules = lazy(() => import('./pages/admin/saas/AdminModules'));
+const AdminBilling = lazy(() => import('./pages/admin/saas/AdminBilling'));
+const AdminSystemSettings = lazy(() => import('./pages/admin/saas/AdminSystemSettings'));
 import RealEstateLayout from './pages/admin/realEstate/RealEstateLayout';
-import RealEstateDashboard from './pages/admin/realEstate/Dashboard';
-import RealEstateProperties from './pages/admin/realEstate/Properties';
-import RealEstatePropertyCreate from './pages/admin/realEstate/PropertyCreate';
-import RealEstatePropertyReports from './pages/admin/realEstate/PropertyReports';
-import RealEstateContracts from './pages/admin/realEstate/Contracts';
-import RealEstateOwners from './pages/admin/realEstate/Owners';
-import RealEstateOwnerCreate from './pages/admin/realEstate/OwnerCreate';
-import RealEstateTenants from './pages/admin/realEstate/Tenants';
-import RealEstateTenantCreate from './pages/admin/realEstate/TenantCreate';
-import RealEstateFinance from './pages/admin/realEstate/Finance';
+const RealEstateDashboard = lazy(() => import('./pages/admin/realEstate/Dashboard'));
+const RealEstateProperties = lazy(() => import('./pages/admin/realEstate/Properties'));
+const RealEstatePropertyCreate = lazy(() => import('./pages/admin/realEstate/PropertyCreate'));
+const RealEstatePropertyReports = lazy(() => import('./pages/admin/realEstate/PropertyReports'));
+const RealEstateContracts = lazy(() => import('./pages/admin/realEstate/Contracts'));
+const RealEstateOwners = lazy(() => import('./pages/admin/realEstate/Owners'));
+const RealEstateOwnerCreate = lazy(() => import('./pages/admin/realEstate/OwnerCreate'));
+const RealEstateTenants = lazy(() => import('./pages/admin/realEstate/Tenants'));
+const RealEstateTenantCreate = lazy(() => import('./pages/admin/realEstate/TenantCreate'));
+const RealEstateFinance = lazy(() => import('./pages/admin/realEstate/Finance'));
 import RealEstateInvoiceCreate from './pages/admin/realEstate/InvoiceCreate';
 import RealEstateOccupancy from './pages/admin/realEstate/Occupancy';
 import RealEstateMaintenance from './pages/admin/realEstate/Maintenance';
@@ -70,106 +75,106 @@ import ContractDetails from './pages/admin/realEstate/ContractDetails';
 import EmailDashboard from './pages/admin/emailMarketing/Dashboard';
 import EmailCampaignsList from './pages/admin/emailMarketing/CampaignsList';
 import CampaignWizard from './pages/admin/emailMarketing/CampaignWizard';
-import Security from './pages/admin/Security';
 
 
 const App: React.FC = () => {
   return (
     <ThemeProvider>
-      <ErrorBoundary>
-        <BrowserRouter>
-          <Routes>
-          {/* Public signing page — no auth required */}
-          <Route path="/assinar/:token" element={<SignPage />} />
-
+      <AuthProvider>
+      <BrowserRouter>
+        <Routes>
           {/* Linktree Funnel (Special Route) */}
-          <Route path="/funnel" element={<FunnelLinkTree />} />
+          <Route path="/funnel" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><FunnelLinkTree /></Suspense>} />
 
           {/* Public Area */}
           <Route path="/" element={<Layout />}>
-            <Route index element={<Home />} />
-            <Route path="properties" element={<Properties />} />
-            <Route path="properties/:id" element={<PropertyDetails />} />
-            <Route path="campaigns" element={<Campaigns />} />
-            <Route path="jobs" element={<Jobs />} />
-            <Route path="contact" element={<Contact />} />
-            <Route path="about" element={<About />} />
-            <Route path="advertise" element={<Advertise />} />
+            <Route index element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><Home /></Suspense>} />
+            <Route path="properties" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><Properties /></Suspense>} />
+            <Route path="properties/:id" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><PropertyDetails /></Suspense>} />
+            <Route path="campaigns" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><Campaigns /></Suspense>} />
+            <Route path="jobs" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><Jobs /></Suspense>} />
+            <Route path="contact" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><Contact /></Suspense>} />
+            <Route path="about" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><About /></Suspense>} />
+            <Route path="advertise" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><Advertise /></Suspense>} />
             {/* Buyer Area Routes */}
-            <Route path="buyer/login" element={<BuyerLogin />} />
-            <Route path="buyer/dashboard" element={<BuyerDashboard />} />
+            <Route path="register" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><Register /></Suspense>} />
+            <Route path="buyer/dashboard" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><BuyerDashboard /></Suspense>} />
           </Route>
 
           {/* Admin Area */}
           <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/admin/config" replace />} />
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="crm" element={<CRM />} />
-            <Route path="calendar" element={<AdminCalendar />} />
-            <Route path="marketing" element={<Marketing />} />
-            <Route path="whatsapp" element={<WhatsAppStation />} />
-            <Route path="properties" element={<PropertiesList />} />
-            <Route path="properties/new" element={<PropertyForm />} />
-            <Route path="properties/edit/:id" element={<PropertyForm />} />
-            <Route path="config" element={<AdminConfig />} />
-            <Route path="campaigns" element={<CampaignsList />} />
-            <Route path="campaigns/new" element={<CampaignForm />} />
-            <Route path="campaigns/edit/:id" element={<CampaignForm />} />
-            <Route path="jobs" element={<JobsList />} />
-            <Route path="security" element={<Security />} />
-            <Route path="site-content" element={<SiteContent />} />
-            <Route path="pdf-tools" element={<PDFTools />} />
-            <Route path="assinaturas" element={<AssinaturasPage />} />
-            <Route path="assinaturas/novo" element={<EnvelopeCreate />} />
-            <Route path="assinaturas/:id" element={<EnvelopeDetail />} />
+            <Route index element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminDashboard /></Suspense>} />
+            <Route path="crm" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><CRM /></Suspense>} />
+            <Route path="calendar" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminCalendar /></Suspense>} />
+            <Route path="marketing" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><Marketing /></Suspense>} />
+            <Route path="whatsapp" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><WhatsAppStation /></Suspense>} />
+            <Route path="properties" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><PropertiesList /></Suspense>} />
+            <Route path="properties/new" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><PropertyForm /></Suspense>} />
+            <Route path="properties/edit/:id" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><PropertyForm /></Suspense>} />
+            <Route path="users" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><UsersList /></Suspense>} />
+            <Route path="campaigns" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><CampaignsList /></Suspense>} />
+            <Route path="campaigns/new" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><CampaignForm /></Suspense>} />
+            <Route path="campaigns/edit/:id" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><CampaignForm /></Suspense>} />
+            <Route path="jobs" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><JobsList /></Suspense>} />
+            <Route path="site-content" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><SiteContent /></Suspense>} />
+            <Route path="pdf-tools" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><PDFTools /></Suspense>} /> {/* New Route */}
+            <Route path="assinaturas" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AssinaturasWrapper /></Suspense>} />
+            <Route path="assinaturas/enviar" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><EnviarScreen /></Suspense>} />
+            <Route path="signatures/new" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><SignatureBuilder /></Suspense>} /> {/* New Route */}
 
             {/* Email Marketing Routes */}
-            <Route path="email-marketing" element={<EmailDashboard />} />
-            <Route path="email-marketing/campaigns" element={<EmailCampaignsList />} />
-            <Route path="email-marketing/campaigns/new" element={<CampaignWizard />} />
-            <Route path="email-marketing/campaigns/:id/edit" element={<CampaignWizard />} />
+            <Route path="email-marketing" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><EmailDashboard /></Suspense>} />
+            <Route path="email-marketing/campaigns" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><EmailCampaignsList /></Suspense>} />
+            <Route path="email-marketing/campaigns/new" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><CampaignWizard /></Suspense>} />
+            <Route path="email-marketing/campaigns/:id/edit" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><CampaignWizard /></Suspense>} />
 
             <Route element={<SuperAdminRoute />}>
               <Route path="saas" element={<AdminSaaSLayout />}>
-                <Route index element={<AdminSaaSDashboard />} />
-                <Route path="contas" element={<AdminAccounts />} />
-                <Route path="contas/:id" element={<AdminAccountDetails />} />
-                <Route path="planos" element={<AdminPlans />} />
-                <Route path="modulos" element={<AdminModules />} />
+                <Route index element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminSaaSDashboard /></Suspense>} />
+                <Route path="contas" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminAccounts /></Suspense>} />
+                <Route path="contas/:id" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminAccountDetails /></Suspense>} />
+                <Route path="planos" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminPlans /></Suspense>} />
+                <Route path="modulos" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminModules /></Suspense>} />
 
-                <Route path="billing" element={<AdminBilling />} />
-                <Route path="settings" element={<AdminSystemSettings />} />
+                <Route path="billing" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminBilling /></Suspense>} />
+                <Route path="settings" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminSystemSettings /></Suspense>} />
               </Route>
             </Route>
             <Route path="gestao-imobiliaria" element={<RealEstateLayout />}>
-              <Route index element={<RealEstateDashboard />} />
-              <Route path="imoveis/novo" element={<RealEstatePropertyCreate />} />
-              <Route path="imoveis/relatorios" element={<RealEstatePropertyReports />} />
-              <Route path="imoveis" element={<RealEstateProperties />} />
-              <Route path="contratos" element={<RealEstateContracts />} />
-              <Route path="contratos/novo" element={<ContractWizard />} />
-              <Route path="contratos/:id" element={<ContractDetails />} />
-              <Route path="proprietarios" element={<RealEstateOwners />} />
-              <Route path="proprietarios/novo" element={<RealEstateOwnerCreate />} />
-              <Route path="moradores" element={<RealEstateTenants />} />
-              <Route path="moradores/novo" element={<RealEstateTenantCreate />} />
-              <Route path="financeiro" element={<RealEstateFinance />} />
-              <Route path="financeiro/nova-cobranca" element={<RealEstateInvoiceCreate />} />
-              <Route path="ocupacao" element={<RealEstateOccupancy />} />
-              <Route path="manutencoes" element={<RealEstateMaintenance />} />
-              <Route path="manutencoes/novo" element={<RealEstateMaintenanceCreate />} />
-              <Route path="vistorias" element={<RealEstateInspections />} />
-              <Route path="vistorias/novo" element={<RealEstateInspectionCreate />} />
-              <Route path="documentos" element={<RealEstateDocuments />} />
-              <Route path="relatorios" element={<RealEstateReports />} />
+              <Route index element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateDashboard /></Suspense>} />
+              <Route path="imoveis/novo" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstatePropertyCreate /></Suspense>} />
+              <Route path="imoveis/relatorios" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstatePropertyReports /></Suspense>} />
+              <Route path="imoveis" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateProperties /></Suspense>} />
+              <Route path="contratos" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateContracts /></Suspense>} />
+              <Route path="contratos/novo" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><ContractWizard /></Suspense>} />
+              <Route path="contratos/:id" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><ContractDetails /></Suspense>} />
+              <Route path="proprietarios" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateOwners /></Suspense>} />
+              <Route path="proprietarios/novo" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateOwnerCreate /></Suspense>} />
+              <Route path="moradores" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateTenants /></Suspense>} />
+              <Route path="moradores/novo" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateTenantCreate /></Suspense>} />
+              <Route path="financeiro" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateFinance /></Suspense>} />
+              <Route path="financeiro/nova-cobranca" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateInvoiceCreate /></Suspense>} />
+              <Route path="ocupacao" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateOccupancy /></Suspense>} />
+              <Route path="manutencoes" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateMaintenance /></Suspense>} />
+              <Route path="manutencoes/novo" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateMaintenanceCreate /></Suspense>} />
+              <Route path="vistorias" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateInspections /></Suspense>} />
+              <Route path="vistorias/novo" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateInspectionCreate /></Suspense>} />
+              <Route path="documentos" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateDocuments /></Suspense>} />
+              <Route path="relatorios" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateReports /></Suspense>} />
             </Route>
+            <Route path="settings" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminSettings /></Suspense>} />
+            <Route path="security" element={<Suspense fallback={<></>}><Security /></Suspense>} />
+            <Route path="config" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminConfig /></Suspense>} />
+            <Route path="super-admin" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><SuperAdmin /></Suspense>} />
           </Route>
 
           {/* Catch all */}
+          <Route path="login" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><BuyerLogin /></Suspense>} />
+          <Route path="change-password" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><ChangePassword /></Suspense>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        </BrowserRouter>
-      </ErrorBoundary>
+      </BrowserRouter>
+      </AuthProvider>
     </ThemeProvider>
   );
 };
