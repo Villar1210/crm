@@ -38,7 +38,7 @@ async function getLockDurationMinutes(): Promise<number> {
 
 export const register = async (req: Request, res: Response) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, cpf, creci } = req.body;
 
         if (!email || !EMAIL_REGEX.test(email)) {
             return res.status(400).json({ error: 'Email inválido' });
@@ -63,6 +63,8 @@ export const register = async (req: Request, res: Response) => {
                 email,
                 password: hashedPassword,
                 role: role || 'agent',
+                cpf: cpf || null,
+                creci: creci || null,
             },
         });
 
@@ -128,23 +130,25 @@ export const login = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Email e senha são obrigatórios' });
         }
 
+        console.log('[Auth] Login attempt');
+
         const user = await prisma.user.findUnique({ where: { email } });
 
         if (!user) {
-            await prisma.loginLog.create({ data: { email, ip, userAgent, success: false, failReason: 'user_not_found' } });
-            return res.status(401).json({ error: 'Credenciais inválidas' });
+            await prisma.loginLog.create({ data: { email, ip, userAgent, success: false, failReason: 'user_not_found' } }).catch(() => {});
+            return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         // Check if user is active
         if (user.isActive === false) {
-            await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'account_disabled' } });
+            await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'account_disabled' } }).catch(() => {});
             return res.status(403).json({ error: 'Conta desativada. Contate o administrador.' });
         }
 
         // Check if account is locked
         if (user.lockedUntil && user.lockedUntil > new Date()) {
             const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
-            await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'account_locked' } });
+            await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'account_locked' } }).catch(() => {});
             return res.status(423).json({ error: `Conta bloqueada. Tente novamente em ${minutesLeft} minuto(s).` });
         }
 
@@ -158,13 +162,13 @@ export const login = async (req: Request, res: Response) => {
             if (newAttempts >= maxAttempts) {
                 const lockedUntil = new Date(Date.now() + lockMinutes * 60 * 1000);
                 await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: newAttempts, lockedUntil } });
-                await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'invalid_password_locked' } });
+                await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'invalid_password_locked' } }).catch(() => {});
                 return res.status(423).json({ error: `Conta bloqueada por ${lockMinutes} minutos após ${maxAttempts} tentativas falhas.` });
             }
 
             await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: newAttempts } });
-            await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'invalid_password' } });
-            return res.status(401).json({ error: 'Credenciais inválidas' });
+            await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'invalid_password' } }).catch(() => {});
+            return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         // Check 2FA if enabled
@@ -173,7 +177,6 @@ export const login = async (req: Request, res: Response) => {
                 return res.status(200).json({ requiresTwoFactor: true });
             }
 
-            // Allow backup codes
             let twoFactorOk = false;
             const verified = speakeasy.totp.verify({
                 secret: user.twoFactorSecret,
@@ -185,31 +188,29 @@ export const login = async (req: Request, res: Response) => {
             if (verified) {
                 twoFactorOk = true;
             } else if (user.backupCodes) {
-                // Check backup codes
                 const codes: string[] = JSON.parse(user.backupCodes);
                 const matchIdx = await Promise.all(codes.map(c => bcrypt.compare(totpCode, c)));
                 const idx = matchIdx.findIndex(Boolean);
                 if (idx !== -1) {
                     twoFactorOk = true;
-                    // Remove used backup code
                     codes.splice(idx, 1);
                     await prisma.user.update({ where: { id: user.id }, data: { backupCodes: JSON.stringify(codes) } });
                 }
             }
 
             if (!twoFactorOk) {
-                await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'invalid_2fa' } });
+                await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'invalid_2fa' } }).catch(() => {});
                 return res.status(401).json({ error: 'Código 2FA inválido' });
             }
         }
 
-        // Success — reset attempts
+        // Success
         await prisma.user.update({
             where: { id: user.id },
             data: { loginAttempts: 0, lockedUntil: null, lastLogin: new Date() },
         });
 
-        await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: true } });
+        await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: true } }).catch(() => {});
 
         console.log(`[Auth] Login successful for user id: ${user.id} (${user.role})`);
 
@@ -223,11 +224,40 @@ export const login = async (req: Request, res: Response) => {
                 email: user.email,
                 role: user.role,
                 avatar: user.avatar,
-                mustChangePassword: user.mustChangePassword,
+                mustChangePassword: user.mustChangePassword || false,
             },
         });
     } catch (error) {
         console.error('[Auth] Login error:', error);
         res.status(500).json({ error: 'Login failed' });
+    }
+};
+
+export const changePassword = async (req: Request, res: Response) => {
+    try {
+        const { userId, currentPassword, newPassword } = req.body;
+
+        if (!newPassword || newPassword.length < 8 ||
+            !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+            return res.status(400).json({ error: 'Senha deve ter 8+ chars, 1 maiúscula e 1 número' });
+        }
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+        if (currentPassword) {
+            const valid = await bcrypt.compare(currentPassword, user.password);
+            if (!valid) return res.status(400).json({ error: 'Senha atual incorreta' });
+        }
+
+        const hashed = await bcrypt.hash(newPassword, 10);
+        await prisma.user.update({
+            where: { id: userId },
+            data: { password: hashed, mustChangePassword: false }
+        });
+
+        res.json({ success: true, message: 'Senha alterada com sucesso' });
+    } catch (error) {
+        res.status(500).json({ error: 'Falha ao alterar senha' });
     }
 };
