@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { authenticate, requireRole } from '../middleware/auth';
 import { getProperties, createProperty, updateProperty, deleteProperty } from '../controllers/propertyController';
 
 const router = Router();
