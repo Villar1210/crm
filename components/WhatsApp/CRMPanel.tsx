@@ -1,6 +1,86 @@
-import React from 'react';
-import { ChevronRight, PhoneCall, Calendar, DollarSign, StickyNote } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronRight, PhoneCall, Calendar, DollarSign, StickyNote, X, Check, Loader2, ExternalLink } from 'lucide-react';
 import { WhatsAppChat } from '../../types';
+import { API_BASE_URL } from '../../services/apiConfig';
+
+// Pipeline stages from DEFAULT_PIPELINE (mirrors constants.ts)
+const PIPELINE_STAGES = [
+    { id: 'Novo',             label: 'Novo',              color: '#6366f1' },
+    { id: 'Em Triagem',       label: 'Em Atendimento',    color: '#3b82f6' },
+    { id: 'Qualificado',      label: 'Qualificado',       color: '#06b6d4' },
+    { id: 'Visita Agendada',  label: 'Visita Agendada',   color: '#8b5cf6' },
+    { id: 'Proposta',         label: 'Proposta',          color: '#f59e0b' },
+    { id: 'Negociação',       label: 'Negociação',        color: '#f97316' },
+    { id: 'Vendido',          label: 'Vendido',           color: '#22c55e' },
+    { id: 'Não Qualificado',  label: 'Não Qualificado',   color: '#9ca3af' },
+    { id: 'Perdido',          label: 'Perdido',           color: '#ef4444' },
+];
+
+interface ScheduleModalProps {
+    chat: WhatsAppChat;
+    onClose: () => void;
+}
+
+const ScheduleModal: React.FC<ScheduleModalProps> = ({ chat, onClose }) => {
+    const [title, setTitle] = useState(`Visita — ${chat.name || chat.phoneNumber}`);
+    const [date, setDate] = useState('');
+    const [time, setTime] = useState('');
+    const [notes, setNotes] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    const save = async () => {
+        if (!date || !time) return;
+        setSaving(true);
+        try {
+            const token = localStorage.getItem('token');
+            const dueDate = new Date(`${date}T${time}`).toISOString();
+            await fetch(`${API_BASE_URL}/tasks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ title, dueDate, type: 'meeting', notes }),
+            });
+            setSaved(true);
+            setTimeout(onClose, 1200);
+        } catch {
+            /* ignore */
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-end justify-end bg-black/20" onClick={onClose}>
+            <div className="bg-white rounded-xl shadow-2xl w-80 m-4 p-5 border border-gray-200" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-indigo-600" /> Agendar compromisso
+                    </h3>
+                    <button onClick={onClose}><X className="w-4 h-4 text-gray-400" /></button>
+                </div>
+                <div className="space-y-3">
+                    <input value={title} onChange={e => setTitle(e.target.value)}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        placeholder="Título" />
+                    <div className="flex gap-2">
+                        <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                            className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                        <input type="time" value={time} onChange={e => setTime(e.target.value)}
+                            className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    </div>
+                    <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        placeholder="Observações..." />
+                </div>
+                <button onClick={save} disabled={!date || !time || saving}
+                    className="mt-4 w-full py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Calendar className="w-4 h-4" />}
+                    {saving ? 'Salvando...' : saved ? 'Agendado!' : 'Confirmar agendamento'}
+                </button>
+            </div>
+        </div>
+    );
+};
 
 interface CRMPanelProps {
     chat: WhatsAppChat | null;
@@ -9,11 +89,97 @@ interface CRMPanelProps {
 }
 
 export const CRMPanel: React.FC<CRMPanelProps> = ({ chat, isVisible, onClose }) => {
+    const [stage, setStage] = useState('Novo');
+    const [dealValue, setDealValue] = useState('0,00');
+    const [notes, setNotes] = useState('');
+    const [stageSaving, setStageSaving] = useState(false);
+    const [stageSaved, setStageSaved] = useState(false);
+    const [showSchedule, setShowSchedule] = useState(false);
+    const [leadId, setLeadId] = useState<string | null>(null);
+
+    // Load lead data when chat changes
+    useEffect(() => {
+        if (!chat) return;
+        setStage('Novo');
+        setDealValue('0,00');
+        setNotes('');
+        setLeadId(null);
+
+        const token = localStorage.getItem('token');
+        // Try to find existing lead by phone number
+        fetch(`${API_BASE_URL}/leads?search=${encodeURIComponent(chat.phoneNumber)}&limit=1`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(r => r.json())
+            .then(d => {
+                const leads = Array.isArray(d) ? d : (d.leads || []);
+                if (leads.length > 0) {
+                    const lead = leads[0];
+                    setLeadId(lead.id);
+                    if (lead.status) setStage(lead.status);
+                    if (lead.value) setDealValue(String(lead.value).replace('.', ','));
+                    if (lead.notes) setNotes(lead.notes);
+                }
+            })
+            .catch(() => {});
+    }, [chat?.id]);
+
+    const saveStage = async (newStage: string) => {
+        setStage(newStage);
+        setStageSaved(false);
+        const token = localStorage.getItem('token');
+
+        if (leadId) {
+            setStageSaving(true);
+            try {
+                await fetch(`${API_BASE_URL}/leads/${leadId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ status: newStage }),
+                });
+                setStageSaved(true);
+                setTimeout(() => setStageSaved(false), 2000);
+            } catch { /* ignore */ } finally { setStageSaving(false); }
+        } else {
+            // Create new lead from this WhatsApp contact
+            setStageSaving(true);
+            try {
+                const res = await fetch(`${API_BASE_URL}/leads`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({
+                        name: chat?.name || chat?.phoneNumber,
+                        phone: chat?.phoneNumber,
+                        status: newStage,
+                        source: 'whatsapp',
+                    }),
+                });
+                const created = await res.json();
+                if (created?.id) setLeadId(created.id);
+                setStageSaved(true);
+                setTimeout(() => setStageSaved(false), 2000);
+            } catch { /* ignore */ } finally { setStageSaving(false); }
+        }
+    };
+
+    const saveNotes = async () => {
+        if (!leadId) return;
+        const token = localStorage.getItem('token');
+        await fetch(`${API_BASE_URL}/leads/${leadId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ notes }),
+        }).catch(() => {});
+    };
+
     if (!chat) return null;
 
+    const phone = chat.phoneNumber?.replace(/\D/g, '');
+    const phoneFormatted = phone ? `+${phone}` : '';
+
     return (
-        <div className={`relative flex shrink-0 h-full transition-all duration-300 ${isVisible ? 'w-[280px]' : 'w-0'}`}>
-            {/* Toggle tab — always visible on the left edge */}
+        <div className={`relative flex shrink-0 h-full transition-all duration-300 ${isVisible ? 'w-[300px]' : 'w-0'}`}>
+            {/* Toggle tab on left edge */}
             <button
                 onClick={onClose}
                 title={isVisible ? 'Recolher painel' : 'Expandir painel'}
@@ -22,61 +188,120 @@ export const CRMPanel: React.FC<CRMPanelProps> = ({ chat, isVisible, onClose }) 
                 <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-300 ${isVisible ? 'rotate-0' : 'rotate-180'}`} />
             </button>
 
-            {/* Panel content */}
             {isVisible && (
-        <div className="w-[280px] shrink-0 bg-white border-l border-gray-200 flex flex-col h-full overflow-y-auto custom-scrollbar z-20">
-            {/* Header Profile */}
-            <div className="bg-white p-6 flex flex-col items-center border-b border-gray-100 shadow-sm relative">
-                <img src={chat.avatar || `https://ui-avatars.com/api/?name=${chat.name}`} className="w-24 h-24 rounded-full object-cover mb-3 border-4 border-gray-50" alt="" />
-                <h3 className="text-xl font-bold text-gray-800">{chat.name || chat.phoneNumber}</h3>
-                <p className="text-gray-500 text-sm mb-4">{chat.phoneNumber}</p>
+                <div className="w-[300px] shrink-0 bg-white border-l border-gray-200 flex flex-col h-full overflow-y-auto custom-scrollbar z-20">
+                    {showSchedule && <ScheduleModal chat={chat} onClose={() => setShowSchedule(false)} />}
 
-                <div className="flex gap-4 w-full px-4">
-                    <button className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 text-xs font-bold hover:bg-green-50 hover:text-green-700 hover:border-green-200 transition-colors flex flex-col items-center gap-1">
-                        <PhoneCall className="w-4 h-4" /> Ligar
-                    </button>
-                    <button className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 text-xs font-bold hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors flex flex-col items-center gap-1">
-                        <Calendar className="w-4 h-4" /> Agendar
-                    </button>
-                </div>
-            </div>
+                    {/* Header */}
+                    <div className="bg-white p-5 flex flex-col items-center border-b border-gray-100 shadow-sm">
+                        <img
+                            src={chat.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(chat.name || chat.phoneNumber)}&background=6366f1&color=fff`}
+                            className="w-20 h-20 rounded-full object-cover mb-3 border-4 border-indigo-50"
+                            alt=""
+                        />
+                        <h3 className="text-lg font-bold text-gray-800 text-center">{chat.name || chat.phoneNumber}</h3>
+                        <p className="text-gray-400 text-xs mb-4">{phoneFormatted}</p>
 
-            {/* CRM Info Blocks */}
-            <div className="p-4 space-y-4 bg-[#f7f8fa] flex-1">
-                {/* Funnel Stage */}
-                <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Etapa do Funil</h4>
-                    <select className="w-full bg-gray-50 border border-gray-200 rounded px-3 py-2 text-sm font-medium text-gray-700 outline-none focus:border-green-500">
-                        <option value="new">Novos</option>
-                        <option value="talking">Em Atendimento</option>
-                        <option value="proposal">Proposta</option>
-                    </select>
-                </div>
+                        <div className="flex gap-3 w-full">
+                            <a
+                                href={`tel:${phoneFormatted}`}
+                                className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 text-xs font-bold hover:bg-green-50 hover:text-green-700 hover:border-green-200 transition-colors flex flex-col items-center gap-1"
+                            >
+                                <PhoneCall className="w-4 h-4" /> Ligar
+                            </a>
+                            <button
+                                onClick={() => setShowSchedule(true)}
+                                className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 text-xs font-bold hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors flex flex-col items-center gap-1"
+                            >
+                                <Calendar className="w-4 h-4" /> Agendar
+                            </button>
+                            {leadId && (
+                                <a
+                                    href={`/admin/crm`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 text-xs font-bold hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-colors flex flex-col items-center gap-1"
+                                >
+                                    <ExternalLink className="w-4 h-4" /> CRM
+                                </a>
+                            )}
+                        </div>
+                    </div>
 
-                {/* Deal Value */}
-                <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center justify-between">
-                        Valor do Negócio <DollarSign className="w-3.5 h-3.5" />
-                    </h4>
-                    <div className="flex items-center bg-green-50 rounded border border-green-200 px-3 py-2">
-                        <span className="text-green-700 font-bold mr-2">R$</span>
-                        <input type="text" className="bg-transparent font-bold text-green-800 outline-none w-full" defaultValue="0,00" />
+                    {/* CRM Info */}
+                    <div className="p-4 space-y-4 bg-[#f7f8fa] flex-1">
+
+                        {/* Funnel Stage */}
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+                                Etapa do Funil
+                                {stageSaving && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
+                                {stageSaved && <Check className="w-3 h-3 text-green-500" />}
+                            </h4>
+                            <div className="space-y-1">
+                                {PIPELINE_STAGES.map(s => (
+                                    <button
+                                        key={s.id}
+                                        onClick={() => saveStage(s.id)}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 transition-colors ${
+                                            stage === s.id
+                                                ? 'bg-indigo-600 text-white'
+                                                : 'hover:bg-gray-100 text-gray-700'
+                                        }`}
+                                    >
+                                        <span
+                                            className="w-2 h-2 rounded-full shrink-0"
+                                            style={{ backgroundColor: stage === s.id ? '#fff' : s.color }}
+                                        />
+                                        {s.label}
+                                        {stage === s.id && <Check className="w-3 h-3 ml-auto" />}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Deal Value */}
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+                                Valor do Negócio <DollarSign className="w-3.5 h-3.5" />
+                            </h4>
+                            <div className="flex items-center bg-green-50 rounded-lg border border-green-200 px-3 py-2">
+                                <span className="text-green-700 font-bold mr-2 text-sm">R$</span>
+                                <input
+                                    type="text"
+                                    className="bg-transparent font-bold text-green-800 outline-none w-full text-sm"
+                                    value={dealValue}
+                                    onChange={e => setDealValue(e.target.value)}
+                                    onBlur={() => {
+                                        if (!leadId) return;
+                                        const token = localStorage.getItem('token');
+                                        const val = parseFloat(dealValue.replace(',', '.')) || 0;
+                                        fetch(`${API_BASE_URL}/leads/${leadId}`, {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                            body: JSON.stringify({ value: val }),
+                                        }).catch(() => {});
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Notes */}
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <StickyNote className="w-3.5 h-3.5" /> Anotações
+                            </h4>
+                            <textarea
+                                className="w-full bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-gray-700 resize-none outline-none focus:ring-2 focus:ring-yellow-400 placeholder-yellow-500/60"
+                                rows={4}
+                                placeholder="Escreva uma nota sobre este contato..."
+                                value={notes}
+                                onChange={e => setNotes(e.target.value)}
+                                onBlur={saveNotes}
+                            />
+                        </div>
                     </div>
                 </div>
-
-                {/* Notes */}
-                <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                        <StickyNote className="w-3.5 h-3.5" /> Anotações
-                    </h4>
-                    <textarea
-                        className="w-full bg-yellow-50 border border-yellow-200 rounded p-3 text-sm text-gray-700 resize-none outline-none focus:ring-1 focus:ring-yellow-400 placeholder-yellow-700/40"
-                        rows={4}
-                        placeholder="Escreva uma nota..."
-                    ></textarea>
-                </div>
-            </div>
-        </div>
             )}
         </div>
     );
