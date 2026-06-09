@@ -1,5 +1,5 @@
 import { User, Lead, LeadStatus, Property, CRMSettings, HeroSlide, AdCampaign, AdsDashboardStats, Campaign, Pipeline } from '../types';
-import { SignatureEnvelope, SignatureSettings, SignatureSummary, SignatureTemplate } from '../types/signature';
+import { SignatureEnvelope, SignatureEnvelopeListResponse, SignatureSettings, SignatureStats, SignatureSummary, SignatureTemplate } from '../types/signature';
 import { MOCK_HERO_SLIDES, MOCK_JOBS } from '../constants';
 import { API_BASE_URL, API_ROOT_URL } from './apiConfig';
 
@@ -36,9 +36,9 @@ export class ApiClient {
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem('token');
-        localStorage.removeItem('novamorada_user');
+        localStorage.removeItem('ivillar_user');
         // If we are mostly a SPA, we might want to redirect or reload
-        // window.location.href = '/#/login'; 
+        // window.location.href = '/#/buyer/login'; 
       }
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `Request failed: ${response.statusText}`);
@@ -83,15 +83,15 @@ export const api = {
       if (!password) throw new Error('Senha é obrigatória');
       const response = await ApiClient.post<{ token: string; user: User }>('/auth/login', { email, password }, false);
       localStorage.setItem('token', response.token);
-      localStorage.setItem('novamorada_user', JSON.stringify(response.user)); // Keep old key for compatibility if needed, or migrate
+      localStorage.setItem('ivillar_user', JSON.stringify(response.user)); // Keep old key for compatibility if needed, or migrate
       return response.user;
     },
     logout: () => {
       localStorage.removeItem('token');
-      localStorage.removeItem('novamorada_user');
+      localStorage.removeItem('ivillar_user');
     },
     getCurrentUser: (): User | null => {
-      const stored = localStorage.getItem('novamorada_user');
+      const stored = localStorage.getItem('ivillar_user');
       return stored ? JSON.parse(stored) : null;
     },
     register: async (data: any) => {
@@ -103,8 +103,14 @@ export const api = {
     updateHeroSlide: async (_slide: HeroSlide) => true,
   },
   users: {
-    getAll: async () => ApiClient.get('/users'),
-    delete: async (id: string) => { await ApiClient.delete(`/users/${id}`); return true; }
+    getAll: () => ApiClient.get('/users'),
+    create: (data: { name: string; email: string; password: string; role: string; phone?: string; team?: string }) =>
+      ApiClient.post('/users', data),
+    update: (id: string, data: { name?: string; email?: string; role?: string; phone?: string; team?: string }) =>
+      ApiClient.put(`/users/${id}`, data),
+    changePassword: (id: string, data: { currentPassword?: string; newPassword: string }) =>
+      ApiClient.put(`/users/${id}/password`, data),
+    delete: (id: string) => ApiClient.delete(`/users/${id}`),
   },
   user: {
     getFavorites: async (_userId?: string) => []
@@ -148,21 +154,33 @@ export const api = {
   },
   leads: {
     getAll: async () => {
-      const stored = localStorage.getItem('user') || localStorage.getItem('novamorada_user');
-      const user = stored ? JSON.parse(stored) : null;
-      const ownerId = user?.id;
-      const query = ownerId ? `?ownerId=${ownerId}` : '';
-      const leads = await ApiClient.get<Lead[]>(`/leads${query}`);
+      // Decode role from JWT — admin/super_admin sees all leads (no filter needed)
+      let params = '';
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const role = payload.role || '';
+          const userId = payload.userId || '';
+          const isAdmin = role === 'super_admin' || role === 'admin';
+          if (!isAdmin && userId) params = `?ownerId=${encodeURIComponent(userId)}`;
+        }
+      } catch { /* ignore */ }
+      const leads = await ApiClient.get<Lead[]>(`/leads${params}`);
       return leads;
     },
     create: async (lead: Partial<Lead>) => {
-      const stored = localStorage.getItem('user') || localStorage.getItem('novamorada_user');
-      const user = stored ? JSON.parse(stored) : null;
-      const ownerId = user?.id;
-      return ApiClient.post<Lead>('/leads', { ...lead, ownerId: lead.ownerId || ownerId });
-    },
-    update: async (id: string, data: Partial<Lead>) => {
-      return ApiClient.put<Lead>(`/leads/${id}`, data);
+      // Auto-assign to current user
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const userId = payload.userId || '';
+          if (userId && !(lead as any).ownerId) (lead as any).ownerId = userId;
+          if (userId && !(lead as any).assignedTo) (lead as any).assignedTo = userId;
+        }
+      } catch { /* ignore */ }
+      return ApiClient.post<Lead>('/leads', lead);
     },
     updateStatus: async (id: string, status: LeadStatus) => {
       await ApiClient.put(`/leads/${id}`, { status });
@@ -235,6 +253,10 @@ export const api = {
   jobs: {
     getAll: async () => MOCK_JOBS,
     apply: async () => true
+  },
+  systemSettings: {
+    get: () => ApiClient.get('/settings'),
+    update: (data: any) => ApiClient.put('/settings', data),
   },
   crm: {
     getSettings: async (): Promise<CRMSettings> => {
@@ -349,10 +371,10 @@ export const api = {
   },
 
   signatures: {
-    getSummary: async (): Promise<SignatureSummary> => {
-      return ApiClient.get('/signatures/reports/summary');
+    getSummary: async (): Promise<SignatureStats> => {
+      return ApiClient.get('/signatures/stats');
     },
-    listEnvelopes: async (params?: { status?: string; search?: string }): Promise<SignatureEnvelope[]> => {
+    listEnvelopes: async (params?: { status?: string; search?: string; page?: string; limit?: string }): Promise<SignatureEnvelopeListResponse> => {
       const query = params ? new URLSearchParams(params as any).toString() : '';
       return ApiClient.get(`/signatures/envelopes${query ? `?${query}` : ''}`);
     },
@@ -365,16 +387,19 @@ export const api = {
     updateEnvelope: async (id: string, data: any) => {
       return ApiClient.put(`/signatures/envelopes/${id}`, data);
     },
-    uploadDocuments: async (id: string, files: File[]) => {
+    uploadDocument: async (id: string, file: File) => {
       const formData = new FormData();
-      files.forEach(file => formData.append('files', file));
+      formData.append('file', file);
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/signatures/envelopes/${id}/documents`, {
         method: 'POST',
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         body: formData
       });
-      if (!response.ok) throw new Error('Upload failed');
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Falha no upload do documento');
+      }
       return response.json();
     },
     addRecipients: async (id: string, recipients: any[]) => {
@@ -397,6 +422,9 @@ export const api = {
     },
     sendEnvelope: async (id: string) => {
       return ApiClient.post(`/signatures/envelopes/${id}/send`, {});
+    },
+    saveFields: async (id: string, fields: any[]) => {
+      return ApiClient.post(`/signatures/envelopes/${id}/fields`, { fields });
     },
     downloadEnvelope: (id: string) => {
       return `${API_ROOT_URL}/api/signatures/envelopes/${id}/download`;
@@ -468,13 +496,38 @@ export const api = {
       const formData = new FormData();
       files.forEach(file => formData.append('files', file));
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/pdf/images-to-pdf`, {
-        method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-        body: formData
-      });
-      if (!response.ok) throw new Error('Conversion failed');
-      return response.blob();
+
+      // MELHORIA: Adicionar timeout e melhor tratamento de erro para arquivos grandes
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 min timeout
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/pdf/images-to-pdf`, {
+          method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          body: formData,
+          signal: controller.signal
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => '');
+          throw new Error(`Conversion failed: ${response.status} - ${errorText || response.statusText}`);
+        }
+
+        const blob = await response.blob();
+        if (!blob || blob.size === 0) {
+          throw new Error('Conversion returned empty result');
+        }
+
+        return blob;
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          throw new Error('Conversion timeout: the request took too long. Try with smaller images.');
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
     },
     rotate: async (file: File, angle: 90 | 180 | 270) => {
       const formData = new FormData();
