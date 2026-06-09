@@ -48,23 +48,27 @@ const WhatsAppStation: React.FC = () => {
         syncSettings();
     }, []);
 
-    // Load chats when WhatsApp is ready
+    // Load chats when WhatsApp is ready (+ retry after sync completes)
     useEffect(() => {
         if (isReady) {
             loadChats();
+            // Sync can take a few seconds after ready — reload again
+            const t1 = setTimeout(loadChats, 3000);
+            const t2 = setTimeout(loadChats, 8000);
+            return () => { clearTimeout(t1); clearTimeout(t2); };
         }
     }, [isReady]);
 
-    // Listen for new messages via socket
+    // Listen for chat/message updates from backend
     useEffect(() => {
-        if (socket) {
-            socket.on('whatsapp_message', () => {
-                console.log('New message received, refreshing chats...');
-                loadChats();
-            });
-        }
+        if (!socket) return;
+        socket.on('whatsapp_message', loadChats);
+        socket.on('whatsapp_chats_updated', loadChats);
+        socket.on('whatsapp_contacts_updated', loadChats);
         return () => {
-            if (socket) socket.off('whatsapp_message');
+            socket.off('whatsapp_message', loadChats);
+            socket.off('whatsapp_chats_updated', loadChats);
+            socket.off('whatsapp_contacts_updated', loadChats);
         };
     }, [socket]);
 
@@ -122,7 +126,6 @@ const WhatsAppStation: React.FC = () => {
         (c.phoneNumber || '').includes(searchQuery)
     );
     const selectedChat = chats.find(c => c.id === selectedChatId) || null;
-    console.log('[WhatsApp] loadingChats:', loadingChats); // debug
 
     // ── RENDER: CONNECT SCREEN (only Platform mode, not yet ready) ────────────
     if (integrationMode === 'platform' && !isReady) {
@@ -150,8 +153,13 @@ const WhatsAppStation: React.FC = () => {
                         <div className="mt-4 font-bold text-gray-600 min-h-[1.5rem]">
                             {status === 'disconnected' && 'Conectando ao servidor...'}
                             {status === 'connected' && !qr && 'Aguardando QR Code...'}
-                            {status === 'connected' && qr && 'Escaneie o QR Code abaixo'}
-                            {status === 'restoring' && 'Conectado! Sincronizando conversas...'}
+                            {status === 'connected' && qr && '📱 Escaneie com o WhatsApp do celular'}
+                            {status === 'restoring' && (
+                                <span className="flex items-center gap-2 justify-center text-green-600">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Sincronizando conversas...
+                                </span>
+                            )}
                         </div>
                     </div>
 
