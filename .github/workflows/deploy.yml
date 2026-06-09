@@ -38,7 +38,7 @@ jobs:
             echo "→ Buildando frontend..."
             VITE_API_URL=https://ivillar.com.br/api npm run build
 
-            echo "→ Build gerado em: $(ls dist/ | head -5)"
+            echo "→ Build: $(ls dist/assets/*.js | wc -l) arquivos JS"
 
             # ── Backend ───────────────────────────────────────────
             cd /var/www/crm
@@ -60,16 +60,15 @@ jobs:
             npm run build
 
             # ── Reiniciar serviços ────────────────────────────────
-            echo "→ Reiniciando PM2..."
+            echo "→ Reiniciando ivillar-crm (backend principal)..."
             pm2 restart ivillar-crm
-            pm2 restart crm-backend
             pm2 save
 
             echo "→ Recarregando Nginx..."
             systemctl reload nginx
 
             echo "=== Deploy concluído! ==="
-            echo "Acesse: https://ivillar.com.br/admin/security"
+            echo "Acesse: https://ivillar.com.br/admin"
 
       - name: Status
         if: always()
