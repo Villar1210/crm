@@ -119,22 +119,23 @@ export const CRMPanel: React.FC<CRMPanelProps> = ({ chat, isVisible, onClose }) 
         setLeadId(null);
 
         const token = localStorage.getItem('token');
-        // Try to find existing lead by phone number
-        fetch(`${API_BASE_URL}/leads?limit=200`, {
+        const phone = chat.phoneNumber?.replace(/\D/g, '');
+        if (!phone) return;
+
+        // Search lead by phone (API requires phone or ownerId param)
+        fetch(`${API_BASE_URL}/leads?phone=${encodeURIComponent(phone)}`, {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then(r => r.json())
             .then(d => {
-                const allLeads = Array.isArray(d) ? d : (d.leads || []);
-                const phone = chat.phoneNumber?.replace(/\D/g, '');
-                const lead = allLeads.find((l: any) =>
-                    l.phone && l.phone.replace(/\D/g, '').endsWith(phone?.slice(-8) || '')
-                );
-                if (lead) {
+                const leads = Array.isArray(d) ? d : (d.leads || []);
+                if (leads.length > 0) {
+                    const lead = leads[0];
                     setLeadId(lead.id);
                     if (lead.status) setStage(lead.status);
-                    if (lead.value) setDealValue(String(lead.value).replace('.', ','));
-                    if (lead.notes) setNotes(lead.notes);
+                    if (lead.value != null) setDealValue(String(lead.value).replace('.', ','));
+                    if (lead.notes && Array.isArray(lead.notes) && lead.notes.length > 0) setNotes(lead.notes.join('\n'));
+                    else if (typeof lead.notes === 'string' && lead.notes) setNotes(lead.notes);
                 }
             })
             .catch(() => {});
@@ -161,14 +162,23 @@ export const CRMPanel: React.FC<CRMPanelProps> = ({ chat, isVisible, onClose }) 
             // Create new lead from this WhatsApp contact
             setStageSaving(true);
             try {
+                // Decode userId from JWT token
+                let userId: string | null = null;
+                try {
+                    const payload = JSON.parse(atob(token!.split('.')[1]));
+                    userId = payload.userId || null;
+                } catch { /* ignore */ }
+
                 const res = await fetch(`${API_BASE_URL}/leads`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                     body: JSON.stringify({
                         name: chat?.name || chat?.phoneNumber,
-                        phone: chat?.phoneNumber,
+                        phone: chat?.phoneNumber?.replace(/\D/g, ''),
                         status: newStage,
                         source: 'whatsapp',
+                        assignedTo: userId,
+                        ownerId: userId,
                     }),
                 });
                 const created = await res.json();
