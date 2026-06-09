@@ -31,13 +31,9 @@ const MessageBody: React.FC<{ text: string }> = ({ text }) => {
         );
     }
 
-    // Legacy [mídia] fallback
+    // Legacy [mídia] — hide completely (old message without type info)
     if (text === '[mídia]') {
-        return (
-            <span className="inline-flex items-center gap-1.5 text-gray-400 text-sm italic">
-                <Image className="w-3.5 h-3.5 shrink-0" /> Mídia
-            </span>
-        );
+        return null;
     }
 
     return <span className="leading-[19px] whitespace-pre-wrap break-words">{text}</span>;
