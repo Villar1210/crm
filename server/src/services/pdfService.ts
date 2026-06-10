@@ -187,10 +187,20 @@ export const pdfService = {
 
     // --- Security ---
     async protectPdfApi(inputPath: string, outputDir: string, password: string): Promise<string> {
-        return pdfService.convertWithConvertAPI(inputPath, outputDir, 'pdf', { Encrypt: true, UserPassword: password, OwnerPassword: password });
+        // outputDir may be a full path - use its dirname as directory
+        const dir = outputDir.endsWith('.pdf') ? path.dirname(outputDir) : outputDir;
+        const outputPath = path.join(dir, `protected_${Date.now()}.pdf`);
+        await pdfService._exec(`qpdf --encrypt "${password}" "${password}" 256 -- "${inputPath}" "${outputPath}"`);
+        if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size === 0) throw new Error('qpdf protect failed');
+        return outputPath;
     },
 
     async unlockPdfApi(inputPath: string, outputDir: string, password?: string): Promise<string> {
-        return pdfService.convertWithConvertAPI(inputPath, outputDir, 'pdf', { Encrypt: false, Password: password });
+        const dir = outputDir.endsWith('.pdf') ? path.dirname(outputDir) : outputDir;
+        const outputPath = path.join(dir, `unlocked_${Date.now()}.pdf`);
+        const pwFlag = password ? `--password="${password}"` : '';
+        await pdfService._exec(`qpdf ${pwFlag} --decrypt "${inputPath}" "${outputPath}"`);
+        if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size === 0) throw new Error('qpdf unlock failed');
+        return outputPath;
     }
 };
