@@ -9,9 +9,9 @@ import ConvertAPI from 'convertapi';
 const execPromise = util.promisify(exec);
 
 // Paths - Verified by debug_conversion.cjs
-const LIBREOFFICE_PATH = 'C:\\Program Files\\LibreOffice\\program\\soffice.exe';
-const GHOSTSCRIPT_PATH = 'C:\\Program Files\\gs\\gs10.06.0\\bin\\gswin64c.exe';
-const TESSERACT_PATH = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe';
+const LIBREOFFICE_PATH = '/usr/bin/soffice';
+const GHOSTSCRIPT_PATH = '/usr/bin/gs';
+const TESSERACT_PATH = '/usr/bin/tesseract';
 
 export const pdfService = {
     // --- Core Local Methods ---
@@ -28,7 +28,7 @@ export const pdfService = {
             console.log(`[Local] Converting ${path.basename(inputPath)} -> ${targetFormat} via LibreOffice...`);
 
             // Create temp profile to avoid locking issues
-            const tempBase = 'C:/Temp';
+            const tempBase = process.platform === 'win32' ? 'C:/Temp' : '/tmp';
             if (!fs.existsSync(tempBase)) try { fs.mkdirSync(tempBase); } catch (e) { }
             const tempProfileDir = `${tempBase}/LO_Service_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
