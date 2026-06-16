@@ -20,6 +20,27 @@ export const campaignController = {
         }
     },
 
+    getPublic: async (_req: Request, res: Response) => {
+        try {
+            const now = new Date();
+            const campaigns = await prisma.campaign.findMany({
+                where: {
+                    active: true,
+                    startDate: { lte: now },
+                    OR: [{ endDate: null }, { endDate: { gte: now } }],
+                },
+                include: {
+                    properties: { where: { status: 'active' } }
+                },
+                orderBy: { startDate: 'desc' }
+            });
+            return res.json(campaigns);
+        } catch (error) {
+            console.error('Error fetching public campaigns:', error);
+            return res.status(500).json({ error: 'Failed to fetch campaigns' });
+        }
+    },
+
     getById: async (req: Request, res: Response) => {
         const { id } = req.params;
         try {
@@ -45,6 +66,15 @@ export const campaignController = {
         const { title, description, discountPercentage, startDate, endDate, active, image, propertyIds } = req.body;
 
         try {
+            if (propertyIds?.length) {
+                const activeCount = await prisma.property.count({
+                    where: { id: { in: propertyIds }, status: 'active' }
+                });
+                if (activeCount !== propertyIds.length) {
+                    return res.status(400).json({ error: 'Apenas imoveis ativos podem ser adicionados a campanhas.' });
+                }
+            }
+
             const campaign = await prisma.campaign.create({
                 data: {
                     title,
@@ -75,6 +105,15 @@ export const campaignController = {
         const { title, description, discountPercentage, startDate, endDate, active, image, propertyIds } = req.body;
 
         try {
+            if (propertyIds?.length) {
+                const activeCount = await prisma.property.count({
+                    where: { id: { in: propertyIds }, status: 'active' }
+                });
+                if (activeCount !== propertyIds.length) {
+                    return res.status(400).json({ error: 'Apenas imoveis ativos podem ser adicionados a campanhas.' });
+                }
+            }
+
             // First disconnect all properties if propertyIds is provided, then connect new ones
             // Or we can just set them if using set? Prisma allows set.
 

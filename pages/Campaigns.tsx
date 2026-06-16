@@ -9,7 +9,7 @@ const Campaigns: React.FC = () => {
 
   useEffect(() => {
     const fetch = async () => {
-      const data = await api.campaigns.getAll();
+      const data = await api.campaigns.getPublic();
       setCampaigns(data);
     };
     fetch();

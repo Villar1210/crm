@@ -235,9 +235,14 @@ export const api = {
       const response = await ApiClient.get<Campaign[]>('/campaigns');
       return response.map(c => ({
         ...c,
-        // Ensure property has correct values if needed, mainly date conversions usually handled by JSON.parse
-        startDate: c.startDate.split('T')[0], // Basic format for UI if needed, but keeping ISO is usually better.
-        // Let's keep it clean
+        startDate: c.startDate.split('T')[0],
+      }));
+    },
+    getPublic: async () => {
+      const response = await ApiClient.get<Campaign[]>('/campaigns/public', false);
+      return response.map(c => ({
+        ...c,
+        startDate: c.startDate.split('T')[0],
       }));
     },
     getById: async (id: string) => ApiClient.get<Campaign>(`/campaigns/${id}`),
