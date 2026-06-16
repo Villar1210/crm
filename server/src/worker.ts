@@ -2,6 +2,51 @@ import { JobQueue } from './services/queue';
 import { socialPublishService } from './services/socialPublishService';
 import { prisma } from './lib/prisma';
 import { socketService } from './services/socketService';
+import { sendEmail, injectTrackingPixel, injectUnsubscribeLink } from './services/emailProviderService';
+
+const BASE_URL = process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3001}`;
+
+async function processEmailCampaign(campaignId: string) {
+    const campaign = await prisma.emailCampaign.findUnique({ where: { id: campaignId } });
+    if (!campaign) return;
+
+    const recipients = await prisma.emailRecipient.findMany({
+        where: { campaignId, status: 'pending' },
+    });
+
+    let sentCount = 0;
+    for (const recipient of recipients) {
+        const html = injectUnsubscribeLink(
+            injectTrackingPixel(campaign.htmlContent || '', recipient.id, BASE_URL),
+            recipient.id,
+            BASE_URL
+        );
+
+        const result = await sendEmail({
+            to: recipient.email,
+            subject: campaign.subject,
+            html,
+            from: campaign.senderEmail,
+        });
+
+        await prisma.emailRecipient.update({
+            where: { id: recipient.id },
+            data: result.success
+                ? { status: 'sent', sentAt: new Date() }
+                : { status: 'bounced', bouncedAt: new Date() },
+        });
+
+        if (result.success) sentCount++;
+
+        // Throttle para nao sobrecarregar o provider SMTP
+        await new Promise(r => setTimeout(r, 1000));
+    }
+
+    await prisma.emailCampaign.update({
+        where: { id: campaignId },
+        data: { status: 'sent', sentCount: { increment: sentCount } },
+    });
+}
 
 // Job Worker Loop
 const WORKER_INTERVAL = 5000; // Check every 5 seconds
@@ -18,6 +63,12 @@ setInterval(async () => {
             console.log(`[WhatsApp] Sending to ${to}: "${message}"`);
             // TODO: Call actual WhatsApp API logic here
             await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate networking
+        }
+
+        if (job.type === 'email_send') {
+            const { campaignId } = job.payload;
+            if (!campaignId) throw new Error('Missing campaignId for email send');
+            await processEmailCampaign(campaignId);
         }
 
         if (job.type === 'social_publish') {
