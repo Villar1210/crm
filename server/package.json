@@ -27,8 +27,7 @@
         "pino": "^9.5.0",
         "qrcode": "^1.5.4",
         "socket.io": "^4.7.5",
-        "speakeasy": "^2.0.0",
-        "whatsapp-web.js": "^1.34.4"
+        "speakeasy": "^2.0.0"
     },
     "devDependencies": {
         "@types/bcryptjs": "^2.4.6",

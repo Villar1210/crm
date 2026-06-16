@@ -78,8 +78,11 @@ export const registerSuperAdmin = async (req: Request, res: Response) => {
     try {
         const { name, email, password, adminKey } = req.body;
 
-        const ADMIN_REGISTRATION_KEY = process.env.ADMIN_REGISTRATION_KEY || 'ivillar-admin-key-2024';
-
+        const ADMIN_REGISTRATION_KEY = process.env.ADMIN_REGISTRATION_KEY;
+        if (!ADMIN_REGISTRATION_KEY) {
+            console.error('FATAL: ADMIN_REGISTRATION_KEY environment variable is not set.');
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
         if (adminKey !== ADMIN_REGISTRATION_KEY) {
             return res.status(403).json({ error: 'Chave de administração inválida' });
         }

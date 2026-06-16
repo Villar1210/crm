@@ -45,3 +45,13 @@ server/uploads/
 # Banco de dados SQLite local
 server/prisma/dev.db
 server/prisma/dev.db-journal
+
+# Backups e arquivos sensiveis
+*.bak
+*.bak.*
+server/src/scripts/restore_admin.ts
+public/cloned_page_*
+public/*.bak
+server/.env.production
+.env.production
+docker-compose.override.yml
