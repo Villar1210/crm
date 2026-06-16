@@ -170,17 +170,17 @@ let attemptsLeft = MAX_PORT_ATTEMPTS;
 const startServer = () => {
     server.listen(currentPort);
     server.on('listening', () => {
-        console.log(`[Server] Running on port ${currentPort}`);
+        logger.info(`[Server] Running on port ${currentPort}`);
     });
     server.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EADDRINUSE' && attemptsLeft > 0) {
-            console.warn(`[Server] Port ${currentPort} in use, trying ${currentPort + 1}...`);
+            logger.warn(`[Server] Port ${currentPort} in use, trying ${currentPort + 1}...`);
             currentPort++;
             attemptsLeft--;
             server.close();
             startServer();
         } else {
-            console.error('[Server] Failed to start:', err);
+            logger.error(err, '[Server] Failed to start');
             process.exit(1);
         }
     });
