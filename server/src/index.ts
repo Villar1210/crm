@@ -6,6 +6,7 @@ import http from 'http';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import pinoHttp from 'pino-http';
+import cookieParser from 'cookie-parser';
 import './worker'; // Start Worker
 import { whatsappService } from './services/whatsappService';
 import { logger } from './lib/logger';
@@ -53,6 +54,7 @@ app.use(cors({
 
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+app.use(cookieParser());
 
 app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/api/health' } }));
 

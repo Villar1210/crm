@@ -218,6 +218,16 @@ export const login = async (req: Request, res: Response) => {
 
         const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
 
+        // Cookie httpOnly (defesa em profundidade) - mantemos o token no corpo
+        // tambem para compatibilidade com codigo existente que le do localStorage
+        res.cookie('auth_token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 8 * 60 * 60 * 1000,
+            path: '/',
+        });
+
         res.json({
             token,
             user: {

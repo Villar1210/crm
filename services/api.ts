@@ -29,6 +29,7 @@ export class ApiClient {
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: { ...defaultHeaders, ...headers },
+      credentials: 'include',
       body,
       ...rest,
     });
@@ -86,7 +87,8 @@ export const api = {
       localStorage.setItem('ivillar_user', JSON.stringify(response.user)); // Keep old key for compatibility if needed, or migrate
       return response.user;
     },
-    logout: () => {
+    logout: async () => {
+      await ApiClient.post('/auth/logout', {}, false).catch(() => {});
       localStorage.removeItem('token');
       localStorage.removeItem('ivillar_user');
     },
