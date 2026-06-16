@@ -1,6 +1,7 @@
 import { JobQueue } from './services/queue';
 import { socialPublishService } from './services/socialPublishService';
 import { prisma } from './lib/prisma';
+import { socketService } from './services/socketService';
 
 // Job Worker Loop
 const WORKER_INTERVAL = 5000; // Check every 5 seconds
@@ -52,8 +53,17 @@ setInterval(async () => {
 
         for (const task of tasks) {
             console.log(`[REMINDER] Task "${task.title}" due at ${task.dueDate.toLocaleTimeString()}`);
+            if (task.userId) {
+                try {
+                    socketService.getIO().to(`user_${task.userId}`).emit('task:due_soon', {
+                        id: task.id,
+                        title: task.title,
+                        leadName: (task as any).lead?.name,
+                        dueDate: task.dueDate,
+                    });
+                } catch { /* socket not initialized yet */ }
+            }
             // Logic to prevent duplicate alerts (e.g., check Redis or a 'notified' flag)
-            // For now just log
         }
     } catch (e) {
         console.error('Reminder check failed', e);
