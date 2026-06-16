@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Filter, MapPin, Bed, Bath, Maximize, Heart, Map as MapIcon, Grid } from 'lucide-react';
 import { api } from '../services/api';
+import { SEO } from '../components/SEO';
 import { Property, PropertyType } from '../types';
 import { MOCK_CAMPAIGNS } from '../constants';
 import PropertyMap from '../components/PropertyMap';
@@ -108,6 +109,7 @@ const Properties: React.FC = () => {
 
   return (
     <div className="bg-gray-50 min-h-screen flex flex-col">
+      <SEO title="Imóveis à Venda e Aluguel | Ivillar" description="Explore nossa seleção de imóveis residenciais e comerciais. Filtre por tipo, preço e localização." keywords={['imóveis', 'apartamento', 'casa', 'aluguel', 'venda', 'São Paulo']} />
       {/* Subheader Filters */}
       <div className="bg-white border-b border-gray-200 sticky top-20 z-30 shadow-sm">
         <div className="container mx-auto px-4 py-4">

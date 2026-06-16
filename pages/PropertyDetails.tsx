@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MapPin, Bed, Bath, Maximize, Check, Share2, Heart, MessageCircle, User, ArrowRight, HardHat, Calendar, DollarSign } from 'lucide-react';
 import { api } from '../services/api';
+import { SEO } from '../components/SEO';
 import { Property } from '../types';
 import { APP_CONFIG, MOCK_PROPERTIES } from '../constants';
 
@@ -40,6 +41,12 @@ const PropertyDetails: React.FC = () => {
 
   return (
     <div className="bg-white min-h-screen pb-20">
+      <SEO
+        title={`${property.title} — ${property.city} | Ivillar`}
+        description={`${property.type} com ${(property as any).bedrooms ?? ''} quartos e ${(property as any).area ?? ''}m² em ${property.city}. ${(property.description ?? '').substring(0, 120)}`}
+        image={(property as any).images?.[0]}
+        type="article"
+      />
       {/* Modern Grid Gallery (Desktop) & Slider (Mobile) */}
       <div className="container mx-auto px-4 pt-6 pb-6 hidden md:grid grid-cols-4 grid-rows-2 gap-2 h-[37.5rem]">
         {property.images.slice(0, 5).map((img, idx) => (

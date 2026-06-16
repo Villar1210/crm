@@ -5,6 +5,7 @@ import { ArrowRight, Star, MapPin, Bed, Bath, Maximize, Zap, ChevronRight, Messa
 import { MOCK_PROPERTIES, MOCK_CAMPAIGNS, APP_CONFIG } from '../constants';
 import { PropertyType, HeroSlide } from '../types';
 import { api } from '../services/api';
+import { SEO } from '../components/SEO';
 
 const Home: React.FC = () => {
   const [heroIndex, setHeroIndex] = useState(0);
@@ -42,6 +43,7 @@ const Home: React.FC = () => {
 
   return (
     <div className="bg-white">
+      <SEO title="Imóveis de Alto Padrão | Ivillar" description="Encontre imóveis de alto padrão para compra e aluguel. Casas, apartamentos e coberturas de luxo em São Paulo e região." />
       {/* Hero Section */}
       <section className="relative h-[85vh] flex items-center justify-center overflow-hidden">
         {heroSlides.length > 0 ? (

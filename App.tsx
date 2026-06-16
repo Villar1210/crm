@@ -1,6 +1,7 @@
 
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import Layout from './components/Layout';
 import AdminLayout from './components/AdminLayout';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -79,6 +80,7 @@ const CampaignWizard = lazy(() => import('./pages/admin/emailMarketing/CampaignW
 
 const App: React.FC = () => {
   return (
+    <HelmetProvider>
     <ThemeProvider>
       <AuthProvider>
       <BrowserRouter>
@@ -176,6 +178,7 @@ const App: React.FC = () => {
       </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
+    </HelmetProvider>
   );
 };
 
