@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import speakeasy from 'speakeasy';
+import { socketService } from '../services/socketService';
 
 
 if (!process.env.JWT_SECRET) {
@@ -12,6 +13,27 @@ if (!process.env.JWT_SECRET) {
 const JWT_SECRET = process.env.JWT_SECRET;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function checkBruteForce(ip: string): Promise<void> {
+    try {
+        const recentFailures = await prisma.loginLog.count({
+            where: {
+                ip,
+                success: false,
+                createdAt: { gte: new Date(Date.now() - 15 * 60 * 1000) },
+            },
+        });
+        if (recentFailures >= 20) {
+            socketService.getIO().to('role_super_admin').emit('security:alert', {
+                type: 'brute_force',
+                ip,
+                attempts: recentFailures,
+                message: `${recentFailures} tentativas de login falhas do IP ${ip} nos ultimos 15 minutos`,
+            });
+            console.warn(`[Security] Possivel brute force: ${recentFailures} falhas do IP ${ip}`);
+        }
+    } catch { /* socket pode nao estar inicializado ainda */ }
+}
 
 async function getMaxLoginAttempts(): Promise<number> {
     try {
@@ -165,11 +187,13 @@ export const login = async (req: Request, res: Response) => {
                 const lockedUntil = new Date(Date.now() + lockMinutes * 60 * 1000);
                 await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: newAttempts, lockedUntil } });
                 await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'invalid_password_locked' } }).catch(() => {});
+                checkBruteForce(ip).catch(() => {});
                 return res.status(423).json({ error: `Conta bloqueada por ${lockMinutes} minutos após ${maxAttempts} tentativas falhas.` });
             }
 
             await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: newAttempts } });
             await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'invalid_password' } }).catch(() => {});
+            checkBruteForce(ip).catch(() => {});
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 

@@ -623,7 +623,10 @@ const AdminConfig: React.FC = () => {
               onClick={() => {
                 const pw = prompt('Digite a senha de admin para confirmar o reset:');
                 if (!pw) return;
-                ApiClient.post('/system/reset-database', { password: pw, type: 'development' })
+                const expectedPhrase = 'CONFIRMO RESET DEVELOPMENT';
+                const confirmPhrase = prompt(`Digite exatamente: "${expectedPhrase}"`);
+                if (confirmPhrase !== expectedPhrase) return err('Frase de confirmacao incorreta');
+                ApiClient.post('/system/reset-database', { password: pw, type: 'development', confirmPhrase })
                   .then(() => ok('Banco resetado com sucesso'))
                   .catch((e: any) => err(e.message || 'Erro ao resetar banco'));
               }}

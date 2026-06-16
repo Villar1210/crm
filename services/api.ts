@@ -745,8 +745,8 @@ export const api = {
   },
 
   system: {
-    resetDatabase: async (password: string, type: 'production' | 'development') => {
-      return ApiClient.post('/system/reset-database', { password, type });
+    resetDatabase: async (password: string, type: 'production' | 'development', confirmPhrase: string) => {
+      return ApiClient.post('/system/reset-database', { password, type, confirmPhrase });
     }
   }
 };
