@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { authenticate, requireRole } from '../middleware/auth';
-import { uploadAvatar, getUsers, updateUser, createUser, resetUserPassword, deleteUser } from '../controllers/userController';
+import { uploadAvatar, getUsers, updateUser, createUser, resetUserPassword, deleteUser, updatePreferences } from '../controllers/userController';
 
 const router = Router();
 
@@ -21,11 +21,12 @@ const avatarStorage = multer.diskStorage({
 });
 const avatarUpload = multer({ storage: avatarStorage, limits: { fileSize: 2 * 1024 * 1024 } });
 
-router.get('/', getUsers);
+router.get('/', authenticate, getUsers);
 router.post('/', authenticate, requireRole('super_admin'), createUser);
-router.put('/:id', updateUser);
-router.post('/:id/reset-password', resetUserPassword);
+router.put('/:id', authenticate, requireRole('admin', 'super_admin'), updateUser);
+router.post('/:id/reset-password', authenticate, requireRole('admin', 'super_admin'), resetUserPassword);
 router.delete('/:id', authenticate, requireRole('super_admin'), deleteUser);
-router.post('/:id/avatar', avatarUpload.single('avatar'), uploadAvatar);
+router.post('/:id/avatar', authenticate, avatarUpload.single('avatar'), uploadAvatar);
+router.put('/me/preferences', authenticate, updatePreferences);
 
 export default router;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-    LayoutDashboard, Building, Building2, Users, Megaphone, Settings, LogOut,
+    LayoutDashboard, Building, Building2, Users, Megaphone, Settings, LogOut, HelpCircle,
     Briefcase, Shield, BarChart2, Calendar, LayoutTemplate,
     Search, Bell, Menu, Home, X, FileText, Zap, PanelLeft, Mail, PenTool, Moon, Sun
 } from 'lucide-react';
@@ -223,6 +223,7 @@ const AdminLayout: React.FC = () => {
                                 <NavItem to="/admin/site-content" icon={LayoutTemplate} label="Design Front-end" />
                                 <NavItem to="/admin/security" icon={Shield} label="Segurança" />
                                 <NavItem to="/admin/config" icon={Settings} label="Ajustes de Conta" />
+                                <NavItem to="/admin/help" icon={HelpCircle} label="Ajuda" />
                             </>
                         )}
                     </div>

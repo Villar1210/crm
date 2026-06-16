@@ -28,6 +28,7 @@ const AdminCalendar = lazy(() => import('./pages/admin/Calendar'));
 const PropertiesList = lazy(() => import('./pages/admin/PropertiesList'));
 const PropertyForm = lazy(() => import('./pages/admin/PropertyForm'));
 const AdminSettings = lazy(() => import('./pages/admin/Settings'));
+const Help = lazy(() => import('./pages/admin/Help'));
 const AdminConfig = lazy(() => import('./pages/admin/AdminConfig'));
 const SuperAdmin = lazy(() => import('./pages/admin/SuperAdmin'));
 const UsersList = lazy(() => import('./pages/admin/UsersList'));
@@ -165,6 +166,7 @@ const App: React.FC = () => {
               <Route path="relatorios" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateReports /></Suspense>} />
             </Route>
             <Route path="settings" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminSettings /></Suspense>} />
+            <Route path="help" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><Help /></Suspense>} />
             <Route path="security" element={<Suspense fallback={<></>}><Security /></Suspense>} />
             <Route path="config" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminConfig /></Suspense>} />
             <Route path="super-admin" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><SuperAdmin /></Suspense>} />
