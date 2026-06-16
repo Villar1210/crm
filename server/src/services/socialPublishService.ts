@@ -1,5 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { requestJson } from './httpClient';
+import { decrypt, encrypt } from '../lib/crypto';
+import { refreshOAuthToken } from './socialOAuthService';
 
 const META_API_VERSION = process.env.META_API_VERSION || 'v19.0';
 const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
@@ -188,14 +190,36 @@ const publishToProvider = async (provider: string, payload: PostPayload) => {
     throw new Error(`No token for provider ${provider}`);
   }
 
+  let accessToken = decrypt(connection.token.accessToken);
+  const refreshTokenDecrypted = connection.token.refreshToken ? decrypt(connection.token.refreshToken) : null;
+
+  if (connection.token.expiresAt && connection.token.expiresAt < new Date() && refreshTokenDecrypted) {
+    const refreshed = await refreshOAuthToken(provider as any, refreshTokenDecrypted);
+    accessToken = refreshed.access_token;
+    await prisma.socialIntegrationToken.update({
+      where: { id: connection.token.id },
+      data: {
+        accessToken: encrypt(accessToken),
+        refreshToken: refreshed.refresh_token ? encrypt(refreshed.refresh_token) : undefined,
+        expiresAt: refreshed.expires_in ? new Date(Date.now() + refreshed.expires_in * 1000) : null,
+      },
+    });
+  }
+
+  const decryptedToken = {
+    ...connection.token,
+    accessToken,
+    refreshToken: refreshTokenDecrypted,
+  };
+
   if (provider === 'facebook') {
-    return publishToFacebook(payload, connection.token);
+    return publishToFacebook(payload, decryptedToken);
   }
   if (provider === 'instagram') {
-    return publishToInstagram(payload, connection.token);
+    return publishToInstagram(payload, decryptedToken);
   }
   if (provider === 'linkedin') {
-    return publishToLinkedIn(payload, connection.token);
+    return publishToLinkedIn(payload, decryptedToken);
   }
 
   throw new Error(`Provider ${provider} not supported for publishing`);
