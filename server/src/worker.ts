@@ -59,3 +59,22 @@ setInterval(async () => {
         console.error('Reminder check failed', e);
     }
 }, REMINDER_INTERVAL);
+
+// Marcar faturas de aluguel vencidas (a cada hora)
+const OVERDUE_CHECK_INTERVAL = 60 * 60 * 1000;
+setInterval(async () => {
+    try {
+        const result = await prisma.realEstateInvoice.updateMany({
+            where: {
+                status: { in: ['generated', 'sent'] },
+                dueDate: { lt: new Date() },
+            },
+            data: { status: 'overdue' },
+        });
+        if (result.count > 0) {
+            console.log(`[Cron] ${result.count} faturas marcadas como vencidas`);
+        }
+    } catch (e) {
+        console.error('Overdue invoice check failed', e);
+    }
+}, OVERDUE_CHECK_INTERVAL);
