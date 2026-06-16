@@ -50,8 +50,8 @@ interface WhatsAppState {
     saveTimer: NodeJS.Timeout | null; // debounce para salvar no disco
 }
 
-const STORE_FILE = path.join(process.cwd(), '.wa_store.json');
-const AUTH_DIR   = path.join(process.cwd(), '.wa_auth');
+const STORE_FILE = process.env.WA_STORE_PATH || path.join(process.cwd(), '.wa_store.json');
+const AUTH_DIR   = process.env.WA_AUTH_PATH   || path.join(process.cwd(), '.wa_auth');
 const logger     = P({ level: 'silent' });
 
 const state: WhatsAppState = {
@@ -104,16 +104,24 @@ function emit(event: string, data?: any) {
     if (state.io) state.io.emit(event, data);
 }
 
+function emitToAdmins(event: string, data?: any) {
+    if (state.io) state.io.to('role_admin').to('role_super_admin').emit(event, data);
+}
+
 function setStatus(s: WAStatus) {
     state.status = s;
     emit('whatsapp_status', s);
     console.log(`[WhatsApp] Status: ${s}`);
 }
 
-function scheduleReconnect(delayMs = 10_000) {
+let reconnectAttempts = 0;
+
+function scheduleReconnect() {
+    const delayMs = Math.min(30_000, 2_000 * Math.pow(2, reconnectAttempts));
+    reconnectAttempts++;
     if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
     state.reconnectTimer = setTimeout(() => {
-        console.log('[WhatsApp] Tentando reconexão...');
+        console.log(`[WhatsApp] Tentando reconexão... (tentativa ${reconnectAttempts}, delay ${delayMs}ms)`);
         connect();
     }, delayMs);
 }
@@ -181,7 +189,7 @@ async function connect() {
                 const dataUrl = await qrcode.toDataURL(qr, { margin: 2, width: 300 });
                 state.lastQR = dataUrl;
                 setStatus('qr_ready');
-                emit('whatsapp_qr', dataUrl);
+                emitToAdmins('whatsapp_qr', dataUrl);
                 console.log('[WhatsApp] QR code gerado e emitido');
             } catch (err) {
                 console.error('[WhatsApp] Erro ao gerar QR:', err);
@@ -190,6 +198,7 @@ async function connect() {
 
         if (connection === 'open') {
             state.lastQR = null;
+            reconnectAttempts = 0;
             if (state.reconnectTimer) clearTimeout(state.reconnectTimer);
             setStatus('ready');
             emit('whatsapp_ready');
@@ -207,10 +216,9 @@ async function connect() {
             if (loggedOut) {
                 console.log('[WhatsApp] Sessão encerrada. Limpando credenciais...');
                 clearAuthDir();
-                scheduleReconnect(3_000);
-            } else {
-                scheduleReconnect(8_000);
+                reconnectAttempts = 0;
             }
+            scheduleReconnect();
         }
 
         if ((update as any).isNewLogin) {
@@ -483,14 +491,19 @@ export const whatsappService = {
         console.log('[WhatsApp] Serviço iniciando...');
 
         io.on('connection', (socket) => {
+            const user = (socket as any).user;
+            const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+
             socket.emit('whatsapp_status', state.status);
-            if (state.lastQR) socket.emit('whatsapp_qr', state.lastQR);
+            if (isAdmin && state.lastQR) socket.emit('whatsapp_qr', state.lastQR);
 
             socket.on('whatsapp_reconnect', () => {
+                if (!isAdmin) return;
                 console.log('[WhatsApp] Reconexão solicitada via socket');
                 connect();
             });
             socket.on('whatsapp_logout', async () => {
+                if (!isAdmin) return;
                 console.log('[WhatsApp] Logout solicitado via socket');
                 await logout();
             });
