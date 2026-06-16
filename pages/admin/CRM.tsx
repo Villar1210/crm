@@ -3314,8 +3314,8 @@ const CRM: React.FC = () => {
         const init = async () => {
             const user = api.auth.getCurrentUser();
             setCurrentUser(user);
-            const data = await api.leads.getAll();
-            setLeads(data);
+            const data = await api.leads.getAll({ limit: 200 });
+            setLeads(data.leads);
             if (user?.role === 'admin' || user?.role === 'super_admin') setFilterOwner('all');
             else setFilterOwner('me');
 

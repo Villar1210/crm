@@ -44,13 +44,13 @@ const upload = multer({
     },
 });
 
-router.get('/', getLeads);
+router.get('/', authenticate, getLeads);
 router.delete('/', authenticate, requireRole('super_admin'), deleteAllLeads);
 router.post('/', createLead);
-router.put('/:id', updateLead);
+router.put('/:id', authenticate, updateLead);
 router.delete('/:id', authenticate, requireRole('super_admin'), deleteLead);
 
 // Upload Route
-router.post('/:id/documents', upload.single('file'), uploadDocument);
+router.post('/:id/documents', authenticate, upload.single('file'), uploadDocument);
 
 export default router;

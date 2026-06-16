@@ -155,21 +155,14 @@ export const api = {
     delete: async (id: string) => ApiClient.delete(`/tasks/${id}`)
   },
   leads: {
-    getAll: async () => {
-      // Decode role from JWT — admin/super_admin sees all leads (no filter needed)
-      let params = '';
-      try {
-        const token = localStorage.getItem('token');
-        if (token) {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          const role = payload.role || '';
-          const userId = payload.userId || '';
-          const isAdmin = role === 'super_admin' || role === 'admin';
-          if (!isAdmin && userId) params = `?ownerId=${encodeURIComponent(userId)}`;
-        }
-      } catch { /* ignore */ }
-      const leads = await ApiClient.get<Lead[]>(`/leads${params}`);
-      return leads;
+    getAll: async (options?: { page?: number; limit?: number; query?: string }) => {
+      const params = new URLSearchParams();
+      if (options?.page) params.set('page', String(options.page));
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.query) params.set('query', options.query);
+      const query = params.toString();
+      const data = await ApiClient.get<{ leads: Lead[]; total: number; page: number; pages: number }>(`/leads${query ? `?${query}` : ''}`);
+      return data;
     },
     create: async (lead: Partial<Lead>) => {
       // Auto-assign to current user
