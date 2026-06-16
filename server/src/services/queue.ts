@@ -1,6 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
-const prisma = new PrismaClient();
 
 export type JobType = 'whatsapp_send' | 'email_send' | 'social_publish';
 

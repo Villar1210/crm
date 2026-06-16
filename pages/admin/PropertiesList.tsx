@@ -16,7 +16,7 @@ const PropertiesList: React.FC = () => {
   useEffect(() => {
     const fetch = async () => {
       // Include unpublished to fetch pending
-      const data = await api.properties.getAll({ includeUnpublished: true });
+      const data = await api.properties.getAll();
       setProperties(data);
       setLoading(false);
     };

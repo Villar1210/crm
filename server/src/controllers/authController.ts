@@ -1,10 +1,9 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import speakeasy from 'speakeasy';
 
-const prisma = new PrismaClient();
 
 if (!process.env.JWT_SECRET) {
     console.error('FATAL: JWT_SECRET environment variable is not set. Refusing to start.');

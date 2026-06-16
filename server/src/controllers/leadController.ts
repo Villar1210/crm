@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { assignLeadIfEligible } from '../services/leadRouletteService';
 
-const prisma = new PrismaClient();
 
 const parseJsonArray = (value?: string | null) => {
     if (!value) return [];

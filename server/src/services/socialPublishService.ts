@@ -1,7 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { requestJson } from './httpClient';
 
-const prisma = new PrismaClient();
 const META_API_VERSION = process.env.META_API_VERSION || 'v19.0';
 const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 

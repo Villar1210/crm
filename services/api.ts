@@ -122,15 +122,15 @@ export const api = {
     }
   },
   properties: {
-    getAll: async (options?: { includeUnpublished?: boolean }) => {
-      const props = await ApiClient.get<Property[]>('/properties');
-      if (options?.includeUnpublished) return props;
-      return props.filter(p => p.published !== false);
+    getAll: async () => {
+      return ApiClient.get<Property[]>('/properties');
+    },
+    getPublic: async (filters?: { type?: string; city?: string; minPrice?: number; maxPrice?: number }) => {
+      const query = filters ? new URLSearchParams(filters as any).toString() : '';
+      return ApiClient.get<Property[]>(`/properties/public${query ? `?${query}` : ''}`, false);
     },
     getById: async (id: string) => {
-      // Inefficient but compatible without backend getById endpoint change
-      const props = await ApiClient.get<Property[]>('/properties');
-      return props.find(p => p.id === id);
+      return ApiClient.get<Property>(`/properties/${id}`, false);
     },
     create: async (data: Partial<Property>) => {
       return ApiClient.post<Property>('/properties', data);

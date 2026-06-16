@@ -882,7 +882,7 @@ const LeadDetailModal: React.FC<{
 
     useEffect(() => {
         let isMounted = true;
-        api.properties.getAll({ includeUnpublished: true }).then(data => {
+        api.properties.getAll().then(data => {
             if (isMounted) {
                 setProperties(data);
             }

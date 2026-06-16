@@ -3,15 +3,20 @@ import express from 'express';
 import path from 'path';
 import cors from 'cors';
 import http from 'http';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import pinoHttp from 'pino-http';
 import './worker'; // Start Worker
 import { whatsappService } from './services/whatsappService';
+import { logger } from './lib/logger';
+import { prisma } from './lib/prisma';
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    logger.error({ promise, reason }, 'Unhandled Rejection');
 });
 
 process.on('uncaughtException', (error) => {
-    console.error('Uncaught Exception:', error);
+    logger.error(error, 'Uncaught Exception');
 });
 
 
@@ -27,7 +32,6 @@ const io = socketService.getIO();
 whatsappService.init(io);
 
 
-// const prisma = new PrismaClient();
 const BASE_PORT = Number(process.env.PORT) || 3001;
 const MAX_PORT_ATTEMPTS = Number(process.env.PORT_RETRY_ATTEMPTS) || 5;
 
@@ -49,22 +53,34 @@ app.use(cors({
 
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
-app.use((_req, res, next) => {
-    res.setHeader('Content-Security-Policy',
-        "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline'; " +
-        "style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data: https:; " +
-        "font-src 'self' data:; " +
-        "connect-src 'self' https://graph.facebook.com https://api.linkedin.com wss:; " +
-        "frame-ancestors 'self' https://web.whatsapp.com"
-    );
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    res.setHeader('X-XSS-Protection', '1; mode=block');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    next();
+
+app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/api/health' } }));
+
+// Helmet substitui os headers manuais de seguranca
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            fontSrc: ["'self'", "data:"],
+            connectSrc: ["'self'", "https://graph.facebook.com", "https://api.linkedin.com", "wss:"],
+            frameAncestors: ["'self'", "https://web.whatsapp.com"],
+        },
+    },
+}));
+
+// Rate limiting global (complementa o especifico de auth)
+const globalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 150,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Muitas requisicoes. Tente novamente em breve.' },
+    skip: (req) => req.path === '/api/health',
 });
+app.use('/api/', globalLimiter);
 
 import authRoutes from './routes/authRoutes';
 import leadRoutes from './routes/leadRoutes';
@@ -110,8 +126,29 @@ import securityRoutes from './routes/securityRoutes';
 app.use('/api/security', securityRoutes);
 
 // Health Check
-app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: new Date() });
+app.get('/api/health', async (_req, res) => {
+    const checks: Record<string, any> = {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        uptime: Math.floor(process.uptime()),
+        memory: {
+            used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+            total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+        },
+    };
+
+    try {
+        await prisma.$queryRaw`SELECT 1`;
+        checks.database = 'ok';
+    } catch {
+        checks.database = 'error';
+        checks.status = 'degraded';
+    }
+
+    checks.whatsapp = whatsappService.getStatus?.() ?? 'unknown';
+
+    const httpStatus = checks.status === 'ok' ? 200 : 503;
+    res.status(httpStatus).json(checks);
 });
 
 

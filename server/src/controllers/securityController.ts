@@ -1,11 +1,10 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import { AuthRequest } from '../middleware/auth.js';
 
-const prisma = new PrismaClient();
 
 // ─── 2FA ──────────────────────────────────────────────────────────────────────
 

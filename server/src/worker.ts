@@ -1,5 +1,6 @@
 import { JobQueue } from './services/queue';
 import { socialPublishService } from './services/socialPublishService';
+import { prisma } from './lib/prisma';
 
 // Job Worker Loop
 const WORKER_INTERVAL = 5000; // Check every 5 seconds
@@ -34,8 +35,6 @@ setInterval(async () => {
 const REMINDER_INTERVAL = 60000;
 setInterval(async () => {
     try {
-        const prisma = new (require('@prisma/client').PrismaClient)();
-
         // Find tasks due in next 15 mins that are not completed
         const now = new Date();
         const fifteenMins = new Date(now.getTime() + 15 * 60000);

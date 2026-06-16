@@ -1,8 +1,7 @@
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { requestJson } from './httpClient';
 
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-123';
 const META_API_VERSION = process.env.META_API_VERSION || 'v19.0';
 const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`;

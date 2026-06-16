@@ -28,7 +28,7 @@ const Properties: React.FC = () => {
 
   useEffect(() => {
     const fetchProps = async () => {
-      const data = await api.properties.getAll();
+      const data = await api.properties.getPublic();
       setProperties(data);
       setLoading(false);
     };
