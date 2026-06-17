@@ -1,9 +1,12 @@
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { requestJson } from './httpClient';
+import { encrypt, decrypt } from '../lib/crypto';
 
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-123';
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is not set.');
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 const META_API_VERSION = process.env.META_API_VERSION || 'v19.0';
 const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
@@ -156,8 +159,8 @@ const upsertToken = async (
     where: { connectionId },
     update: {
       provider,
-      accessToken: tokenData.accessToken,
-      refreshToken: tokenData.refreshToken,
+      accessToken: encrypt(tokenData.accessToken),
+      refreshToken: tokenData.refreshToken ? encrypt(tokenData.refreshToken) : undefined,
       expiresAt: tokenData.expiresAt || undefined,
       tokenType: tokenData.tokenType,
       scope: tokenData.scope,
@@ -166,8 +169,8 @@ const upsertToken = async (
     },
     create: {
       provider,
-      accessToken: tokenData.accessToken,
-      refreshToken: tokenData.refreshToken,
+      accessToken: encrypt(tokenData.accessToken),
+      refreshToken: tokenData.refreshToken ? encrypt(tokenData.refreshToken) : undefined,
       expiresAt: tokenData.expiresAt || undefined,
       tokenType: tokenData.tokenType,
       scope: tokenData.scope,
@@ -188,6 +191,25 @@ const exchangeToken = async (config: OAuthConfig, code: string) => {
   }).toString();
 
   return requestJson<any>(config.tokenUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body
+  });
+};
+
+export const refreshOAuthToken = async (provider: SupportedProvider, refreshToken: string) => {
+  if (provider !== 'linkedin') {
+    throw new Error(`Refresh de token nao suportado automaticamente para ${provider}. Reconecte a conta.`);
+  }
+  const config = getProviderConfig(provider);
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+    client_id: config.clientId,
+    client_secret: config.clientSecret
+  }).toString();
+
+  return requestJson<{ access_token: string; refresh_token?: string; expires_in?: number }>(config.tokenUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body

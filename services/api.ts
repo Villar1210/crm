@@ -29,6 +29,7 @@ export class ApiClient {
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: { ...defaultHeaders, ...headers },
+      credentials: 'include',
       body,
       ...rest,
     });
@@ -86,7 +87,8 @@ export const api = {
       localStorage.setItem('ivillar_user', JSON.stringify(response.user)); // Keep old key for compatibility if needed, or migrate
       return response.user;
     },
-    logout: () => {
+    logout: async () => {
+      await ApiClient.post('/auth/logout', {}, false).catch(() => {});
       localStorage.removeItem('token');
       localStorage.removeItem('ivillar_user');
     },
@@ -122,15 +124,15 @@ export const api = {
     }
   },
   properties: {
-    getAll: async (options?: { includeUnpublished?: boolean }) => {
-      const props = await ApiClient.get<Property[]>('/properties');
-      if (options?.includeUnpublished) return props;
-      return props.filter(p => p.published !== false);
+    getAll: async () => {
+      return ApiClient.get<Property[]>('/properties');
+    },
+    getPublic: async (filters?: { type?: string; city?: string; minPrice?: number; maxPrice?: number }) => {
+      const query = filters ? new URLSearchParams(filters as any).toString() : '';
+      return ApiClient.get<Property[]>(`/properties/public${query ? `?${query}` : ''}`, false);
     },
     getById: async (id: string) => {
-      // Inefficient but compatible without backend getById endpoint change
-      const props = await ApiClient.get<Property[]>('/properties');
-      return props.find(p => p.id === id);
+      return ApiClient.get<Property>(`/properties/${id}`, false);
     },
     create: async (data: Partial<Property>) => {
       return ApiClient.post<Property>('/properties', data);
@@ -153,21 +155,14 @@ export const api = {
     delete: async (id: string) => ApiClient.delete(`/tasks/${id}`)
   },
   leads: {
-    getAll: async () => {
-      // Decode role from JWT — admin/super_admin sees all leads (no filter needed)
-      let params = '';
-      try {
-        const token = localStorage.getItem('token');
-        if (token) {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          const role = payload.role || '';
-          const userId = payload.userId || '';
-          const isAdmin = role === 'super_admin' || role === 'admin';
-          if (!isAdmin && userId) params = `?ownerId=${encodeURIComponent(userId)}`;
-        }
-      } catch { /* ignore */ }
-      const leads = await ApiClient.get<Lead[]>(`/leads${params}`);
-      return leads;
+    getAll: async (options?: { page?: number; limit?: number; query?: string }) => {
+      const params = new URLSearchParams();
+      if (options?.page) params.set('page', String(options.page));
+      if (options?.limit) params.set('limit', String(options.limit));
+      if (options?.query) params.set('query', options.query);
+      const query = params.toString();
+      const data = await ApiClient.get<{ leads: Lead[]; total: number; page: number; pages: number }>(`/leads${query ? `?${query}` : ''}`);
+      return data;
     },
     create: async (lead: Partial<Lead>) => {
       // Auto-assign to current user
@@ -240,9 +235,14 @@ export const api = {
       const response = await ApiClient.get<Campaign[]>('/campaigns');
       return response.map(c => ({
         ...c,
-        // Ensure property has correct values if needed, mainly date conversions usually handled by JSON.parse
-        startDate: c.startDate.split('T')[0], // Basic format for UI if needed, but keeping ISO is usually better.
-        // Let's keep it clean
+        startDate: c.startDate.split('T')[0],
+      }));
+    },
+    getPublic: async () => {
+      const response = await ApiClient.get<Campaign[]>('/campaigns/public', false);
+      return response.map(c => ({
+        ...c,
+        startDate: c.startDate.split('T')[0],
       }));
     },
     getById: async (id: string) => ApiClient.get<Campaign>(`/campaigns/${id}`),
@@ -745,8 +745,8 @@ export const api = {
   },
 
   system: {
-    resetDatabase: async (password: string, type: 'production' | 'development') => {
-      return ApiClient.post('/system/reset-database', { password, type });
+    resetDatabase: async (password: string, type: 'production' | 'development', confirmPhrase: string) => {
+      return ApiClient.post('/system/reset-database', { password, type, confirmPhrase });
     }
   }
 };

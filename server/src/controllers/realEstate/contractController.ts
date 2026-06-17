@@ -1,9 +1,8 @@
 
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../lib/prisma';
 
 
-const prisma = new PrismaClient();
 
 export const createContract = async (req: Request, res: Response) => {
     try {
@@ -80,6 +79,19 @@ export const activateContract = async (req: Request, res: Response) => {
 
         if (!contract) return res.status(404).json({ error: 'Contract not found' });
         if (contract.status === 'active') return res.status(400).json({ error: 'Already active' });
+
+        const existingActiveContract = await prisma.leaseContract.findFirst({
+            where: {
+                propertyId: contract.propertyId,
+                status: 'active',
+                id: { not: contract.id },
+            },
+        });
+        if (existingActiveContract) {
+            return res.status(409).json({
+                error: 'Este imovel ja possui um contrato ativo. Encerre o contrato atual antes de ativar um novo.',
+            });
+        }
 
         // 1. Update status to active
         await prisma.leaseContract.update({

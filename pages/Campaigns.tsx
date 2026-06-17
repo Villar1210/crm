@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Timer, ArrowRight, Percent, CheckCircle, Info } from 'lucide-react';
 import { api } from '../services/api';
+import { SEO } from '../components/SEO';
 import { Campaign } from '../types';
 
 const Campaigns: React.FC = () => {
@@ -9,7 +10,7 @@ const Campaigns: React.FC = () => {
 
   useEffect(() => {
     const fetch = async () => {
-      const data = await api.campaigns.getAll();
+      const data = await api.campaigns.getPublic();
       setCampaigns(data);
     };
     fetch();
@@ -17,6 +18,7 @@ const Campaigns: React.FC = () => {
 
   return (
     <div className="bg-white min-h-screen py-20">
+      <SEO title="Campanhas e Ofertas Especiais | Ivillar" description="Confira nossas campanhas e ofertas exclusivas de imóveis. Oportunidades únicas de alto padrão." />
       <div className="container mx-auto px-4">
         <div className="mb-16 text-center max-w-3xl mx-auto">
           <span className="text-brand-600 font-bold tracking-widest text-xs uppercase mb-2 block">Oportunidades Exclusivas</span>

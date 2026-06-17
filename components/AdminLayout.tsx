@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-    LayoutDashboard, Building, Building2, Users, Megaphone, Settings, LogOut,
+    LayoutDashboard, Building, Building2, Users, Megaphone, Settings, LogOut, HelpCircle,
     Briefcase, Shield, BarChart2, Calendar, LayoutTemplate,
     Search, Bell, Menu, Home, X, FileText, Zap, PanelLeft, Mail, PenTool, Moon, Sun
 } from 'lucide-react';
@@ -141,17 +141,17 @@ const AdminLayout: React.FC = () => {
                 {/* Right: User Actions */}
                 <div className="flex items-center justify-end gap-3 md:w-[300px]">
                     {/* Theme Toggle Button */}
-                    <button onClick={toggleTheme} className="w-10 h-10 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl flex items-center justify-center transition-colors text-gray-600 dark:text-gray-300">
+                    <button onClick={toggleTheme} aria-label={isDarkMode ? 'Ativar modo claro' : 'Ativar modo escuro'} className="w-10 h-10 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl flex items-center justify-center transition-colors text-gray-600 dark:text-gray-300">
                         {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                     </button>
 
-                    <button className="w-10 h-10 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl flex items-center justify-center transition-colors text-gray-800 dark:text-gray-200 relative border border-transparent dark:border-gray-700">
+                    <button aria-label="Notificações" className="w-10 h-10 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl flex items-center justify-center transition-colors text-gray-800 dark:text-gray-200 relative border border-transparent dark:border-gray-700">
                         <Bell className="w-5 h-5" />
                         <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center border-2 border-white dark:border-gray-900 shadow-sm">3</span>
                     </button>
 
                     <div className="relative group ml-1">
-                        <button className="w-10 h-10 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700 hover:border-brand-500 dark:hover:border-brand-400 transition-colors shadow-sm">
+                        <button aria-label="Menu do perfil" className="w-10 h-10 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700 hover:border-brand-500 dark:hover:border-brand-400 transition-colors shadow-sm">
                             <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
                         </button>
                         <div className="absolute right-0 top-12 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 w-64 p-2 hidden group-hover:block animate-in fade-in slide-in-from-top-2 z-50">
@@ -223,6 +223,7 @@ const AdminLayout: React.FC = () => {
                                 <NavItem to="/admin/site-content" icon={LayoutTemplate} label="Design Front-end" />
                                 <NavItem to="/admin/security" icon={Shield} label="Segurança" />
                                 <NavItem to="/admin/config" icon={Settings} label="Ajustes de Conta" />
+                                <NavItem to="/admin/help" icon={HelpCircle} label="Ajuda" />
                             </>
                         )}
                     </div>

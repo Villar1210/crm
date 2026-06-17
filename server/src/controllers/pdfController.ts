@@ -8,19 +8,14 @@ export const pdfController = {
 
     // --- Helper to handle service calls ---
     _handleConversion: async (req: Request, res: Response, serviceCall: Function, outputExt: string) => {
+        const file = req.file;
+        let resultPath = '';
         try {
-            const file = req.file;
             if (!file) return res.status(400).json({ error: 'File required' });
 
             // Output path usually in same dir
             const outputFilename = `${path.basename(file.originalname, path.extname(file.originalname))}_converted${outputExt}`;
             const outputPath = path.join(path.dirname(file.path), outputFilename);
-
-            // Call service
-            // Note: service might return a different path if it auto-names, but our service usually takes input/outputDir or input/outputPath
-            // pdfService methods vary. Let's adapt.
-
-            let resultPath = '';
 
             // LibreOffice takes output DIR
             if (serviceCall.name === 'convertWithLibreOffice') {
@@ -41,6 +36,8 @@ export const pdfController = {
 
         } catch (error: any) {
             console.error('Conversion Endpoint Error:', error);
+            if (file) { try { fs.unlinkSync(file.path); } catch { /* ignore */ } }
+            if (resultPath) { try { fs.unlinkSync(resultPath); } catch { /* ignore */ } }
             res.status(500).json({ error: `Conversion failed: ${error.message}` });
         }
     },
@@ -48,8 +45,8 @@ export const pdfController = {
 
     // --- Existing pdf-lib methods ---
     merge: async (req: Request, res: Response) => {
+        const files = req.files as Express.Multer.File[];
         try {
-            const files = req.files as Express.Multer.File[];
             if (!files || files.length < 2) return res.status(400).json({ error: 'Please upload at least 2 PDF files.' });
 
             const mergedPdf = await PDFDocument.create();
@@ -67,20 +64,20 @@ export const pdfController = {
             const pdfBytes = await mergedPdf.save();
             const filename = `merged_${Date.now()}.pdf`;
 
-            files.forEach(file => { try { fs.unlinkSync(file.path); } catch (e) { } });
-
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
             res.send(Buffer.from(pdfBytes));
         } catch (error) {
             console.error('Merge error:', error);
             res.status(500).json({ error: 'Failed to merge PDFs' });
+        } finally {
+            (files || []).forEach(file => { try { fs.unlinkSync(file.path); } catch (e) { } });
         }
     },
 
     imagesToPdf: async (req: Request, res: Response) => {
+        const files = req.files as Express.Multer.File[];
         try {
-            const files = req.files as Express.Multer.File[];
             if (!files || files.length < 1) return res.status(400).json({ error: 'Please upload at least 1 image.' });
 
             const pdfDoc = await PDFDocument.create();
@@ -104,20 +101,20 @@ export const pdfController = {
             const pdfBytes = await pdfDoc.save();
             const filename = `images_converted_${Date.now()}.pdf`;
 
-            files.forEach(file => { try { fs.unlinkSync(file.path); } catch (e) { } });
-
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
             res.send(Buffer.from(pdfBytes));
         } catch (error) {
             console.error('Images to PDF error:', error);
             res.status(500).json({ error: 'Failed to convert images' });
+        } finally {
+            (files || []).forEach(file => { try { fs.unlinkSync(file.path); } catch (e) { } });
         }
     },
 
     split: async (req: Request, res: Response) => {
+        const file = req.file;
         try {
-            const file = req.file;
             if (!file) return res.status(400).json({ error: 'Please upload a PDF file.' });
             const ranges = req.body.ranges || "all";
 
@@ -150,20 +147,20 @@ export const pdfController = {
             const outBytes = await destPdf.save();
             const filename = `split_${Date.now()}.pdf`;
 
-            try { fs.unlinkSync(file.path); } catch (e) { }
-
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
             res.send(Buffer.from(outBytes));
         } catch (error) {
             console.error('Split error:', error);
             res.status(500).json({ error: 'Failed to split' });
+        } finally {
+            if (file) { try { fs.unlinkSync(file.path); } catch (e) { } }
         }
     },
 
     rotate: async (req: Request, res: Response) => {
+        const file = req.file;
         try {
-            const file = req.file;
             const angle = parseInt(req.body.angle as string) || 90;
             if (!file) return res.status(400).json({ error: 'No file' });
 
@@ -177,12 +174,12 @@ export const pdfController = {
 
             const outBytes = await pdfDoc.save();
             const filename = `rotated_${Date.now()}.pdf`;
-            try { fs.unlinkSync(file.path); } catch (e) { }
 
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
             res.send(Buffer.from(outBytes));
         } catch (e) { res.status(500).json({ error: 'Failed to rotate' }); }
+        finally { if (file) { try { fs.unlinkSync(file.path); } catch (e) { } } }
     },
 
     protect: async (req: Request, res: Response) => {
@@ -204,8 +201,8 @@ export const pdfController = {
     },
 
     deletePages: async (req: Request, res: Response) => {
+        const file = req.file;
         try {
-            const file = req.file;
             const pagesToRemoveStr = req.body.pages;
             if (!file || !pagesToRemoveStr) return res.status(400).json({ error: 'File and page numbers required' });
 
@@ -221,17 +218,17 @@ export const pdfController = {
 
             const outBytes = await pdfDoc.save();
             const filename = `cleaned_${Date.now()}.pdf`;
-            try { fs.unlinkSync(file.path); } catch (e) { }
 
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
             res.send(Buffer.from(outBytes));
         } catch (e) { res.status(500).json({ error: 'Failed to delete pages' }); }
+        finally { if (file) { try { fs.unlinkSync(file.path); } catch (e) { } } }
     },
 
     watermark: async (req: Request, res: Response) => {
+        const file = req.file;
         try {
-            const file = req.file;
             const text = req.body.text || 'CONFIDENTIAL';
             if (!file) return res.status(400).json({ error: 'File required' });
 
@@ -255,17 +252,17 @@ export const pdfController = {
 
             const outBytes = await pdfDoc.save();
             const filename = `watermarked_${Date.now()}.pdf`;
-            try { fs.unlinkSync(file.path); } catch (e) { }
 
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
             res.send(Buffer.from(outBytes));
         } catch (e) { res.status(500).json({ error: 'Failed to watermark' }); }
+        finally { if (file) { try { fs.unlinkSync(file.path); } catch (e) { } } }
     },
 
     pageNumbers: async (req: Request, res: Response) => {
+        const file = req.file;
         try {
-            const file = req.file;
             if (!file) return res.status(400).json({ error: 'File required' });
 
             const pdfBytes = fs.readFileSync(file.path);
@@ -281,17 +278,17 @@ export const pdfController = {
 
             const outBytes = await pdfDoc.save();
             const filename = `numbered_${Date.now()}.pdf`;
-            try { fs.unlinkSync(file.path); } catch (e) { }
 
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
             res.send(Buffer.from(outBytes));
         } catch (e) { res.status(500).json({ error: 'Failed to add page numbers' }); }
+        finally { if (file) { try { fs.unlinkSync(file.path); } catch (e) { } } }
     },
 
     sign: async (req: Request, res: Response) => {
+        const files = req.files as Express.Multer.File[];
         try {
-            const files = req.files as Express.Multer.File[];
             if (!files || files.length < 2) return res.status(400).json({ error: 'Please upload PDF and Signature Image.' });
 
             let pdfFile = files.find(f => f.mimetype === 'application/pdf');
@@ -330,14 +327,14 @@ export const pdfController = {
             const outBytes = await pdfDoc.save();
             const filename = `signed_${Date.now()}.pdf`;
 
-            files.forEach(file => { try { fs.unlinkSync(file.path); } catch (e) { } });
-
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
             res.send(Buffer.from(outBytes));
         } catch (error) {
             console.error('Sign error:', error);
             res.status(500).json({ error: 'Failed to sign PDF' });
+        } finally {
+            (files || []).forEach(file => { try { fs.unlinkSync(file.path); } catch (e) { } });
         }
     },
 

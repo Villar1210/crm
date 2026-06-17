@@ -1,10 +1,9 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
-const prisma = new PrismaClient();
 
 export const taskController = {
-    // Get tasks with filters
+    // Get tasks with filters (view=team e ignorado por compatibilidade - todos os usuarios autenticados ja veem a agenda compartilhada)
     getTasks: async (req: Request, res: Response) => {
         try {
             const { start, end, type, status, userId, leadId } = req.query;

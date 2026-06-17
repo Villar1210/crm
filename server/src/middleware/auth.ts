@@ -7,12 +7,16 @@ export interface AuthRequest extends Request {
 }
 
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
+    const tokenFromCookie = req.cookies?.auth_token;
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const tokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+
+    const token = tokenFromCookie || tokenFromHeader;
+
+    if (!token) {
         return res.status(401).json({ error: 'Token de autenticação não fornecido' });
     }
 
-    const token = authHeader.split(' ')[1];
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; role: string };
         req.user = decoded;

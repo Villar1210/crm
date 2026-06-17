@@ -23,7 +23,7 @@ const FunnelLinkTree: React.FC = () => {
                 else setBackgrounds(["https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80"]);
 
                 // Pega um imóvel destaque real
-                const props = await api.properties.getAll();
+                const props = await api.properties.getPublic();
                 const feat = props.find(p => p.featured) || props[0];
                 setFeaturedProperty(feat);
             } catch (error) {

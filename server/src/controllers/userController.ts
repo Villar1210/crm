@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
+import { AuthRequest } from '../middleware/auth';
 
-const prisma = new PrismaClient();
 
 // List Users
 export const getUsers = async (_req: Request, res: Response) => {
@@ -98,6 +98,21 @@ export const deleteUser = async (req: Request, res: Response) => {
         res.status(204).send();
     } catch (error) {
         res.status(500).json({ error: 'Failed to delete user' });
+    }
+};
+
+export const updatePreferences = async (req: AuthRequest, res: Response) => {
+    try {
+        const { userId } = req.user!;
+        const { notifications, theme, timezone, language } = req.body;
+        const preferences = { notifications, theme, timezone, language };
+        await prisma.user.update({
+            where: { id: userId },
+            data: { settings: JSON.stringify(preferences) },
+        });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Falha ao salvar preferencias' });
     }
 };
 

@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { assignLeadIfEligible } from '../services/leadRouletteService';
+import { AuthRequest } from '../middleware/auth';
 
-const prisma = new PrismaClient();
 
 const parseJsonArray = (value?: string | null) => {
     if (!value) return [];
@@ -163,25 +163,16 @@ const buildLeadCreateData = (body: any) => {
     };
 };
 
-export const getLeads = async (req: Request, res: Response) => {
+export const getLeads = async (req: AuthRequest, res: Response) => {
     try {
-        const { phone, name, query, ownerId } = req.query;
+        const { phone, name, query, page, limit } = req.query;
+        const { role, userId } = req.user!;
+        const isAdmin = role === 'super_admin' || role === 'admin';
 
-        // DEBUG: Explicitly log the request params to trace leakage
-        console.log('[API] getLeads request:', { phone, name, query, ownerId });
+        const pageNum = Math.max(1, parseInt(String(page || '1')));
+        const limitNum = Math.min(200, Math.max(1, parseInt(String(limit || '50'))));
+        const skip = (pageNum - 1) * limitNum;
 
-        // Decode JWT role to allow admins to see all leads
-        let reqRole = 'agent';
-        try {
-            const tok = (req.headers.authorization || '').replace('Bearer ', '');
-            const p = JSON.parse(Buffer.from(tok.split('.')[1], 'base64').toString());
-            reqRole = p.role || 'agent';
-        } catch {}
-        const isAdmin = reqRole === 'super_admin' || reqRole === 'admin';
-        if (!phone && !ownerId && !isAdmin) {
-            console.warn('[API] Blocked global fetch without ownerId');
-            return res.json([]);
-        }
         const search = String(query || '').trim();
         const phoneSearch = String(phone || '').trim();
         const phoneDigits = normalizePhoneValue(phoneSearch);
@@ -206,38 +197,48 @@ export const getLeads = async (req: Request, res: Response) => {
         } else if (orFilters.length > 0) {
             whereClause.OR = orFilters;
         }
-        if (ownerId) {
-            const uid = String(ownerId);
-            whereClause.OR = [{ ownerId: uid }, { assignedTo: uid }];
+
+        // Filtro server-side: agentes veem apenas seus proprios leads
+        if (!isAdmin) {
+            whereClause.AND = [
+                ...(whereClause.AND || []),
+                { OR: [{ ownerId: userId }, { assignedTo: userId }] },
+            ];
         }
 
-        let leads;
+        let leads, total;
         try {
-            leads = await prisma.lead.findMany({
-                where: whereClause,
-                orderBy: { createdAt: 'desc' },
-                include: { tasks: true, documents: true } // Include tasks and documents
-            });
+            [leads, total] = await prisma.$transaction([
+                prisma.lead.findMany({
+                    where: whereClause,
+                    orderBy: { createdAt: 'desc' },
+                    skip,
+                    take: limitNum,
+                    include: { tasks: true, documents: true },
+                }),
+                prisma.lead.count({ where: whereClause }),
+            ]);
         } catch (error: any) {
             const message = error?.message || '';
             if (message.includes('no such table') && message.includes('Task')) {
-                leads = await prisma.lead.findMany({
-                    where: whereClause,
-                    orderBy: { createdAt: 'desc' },
-                    include: { documents: true }
-                });
+                [leads, total] = await prisma.$transaction([
+                    prisma.lead.findMany({
+                        where: whereClause,
+                        orderBy: { createdAt: 'desc' },
+                        skip,
+                        take: limitNum,
+                        include: { documents: true },
+                    }),
+                    prisma.lead.count({ where: whereClause }),
+                ]);
             } else {
                 throw error;
             }
         }
-        // Parse JSON fields for frontend compatibility if necessary, 
-        // but the frontend service usually expects full objects.
-        // Since we store as string in SQLite, we might need to parse them back to JSON objects if the frontend expects real JSON.
-        // For now returning as is, frontend might need adjustment or we parse here.
 
         const parsedLeads = leads.map(formatLead);
 
-        res.json(parsedLeads);
+        res.json({ leads: parsedLeads, total, page: pageNum, pages: Math.ceil(total / limitNum) });
     } catch (error: any) {
         console.error('Lead fetch failed:', error);
         res.status(500).json({ error: error?.message || 'Failed to fetch leads' });

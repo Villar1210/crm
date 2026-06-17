@@ -20,6 +20,7 @@ const AdminSystemSettings: React.FC = () => {
     const [showResetModal, setShowResetModal] = React.useState(false);
     const [resetType, setResetType] = React.useState<'production' | 'development' | null>(null);
     const [resetPassword, setResetPassword] = React.useState('');
+    const [resetConfirmPhrase, setResetConfirmPhrase] = React.useState('');
     const [isResetting, setIsResetting] = React.useState(false);
 
     React.useEffect(() => {
@@ -59,15 +60,22 @@ const AdminSystemSettings: React.FC = () => {
     const handleResetClick = (type: 'production' | 'development') => {
         setResetType(type);
         setResetPassword('');
+        setResetConfirmPhrase('');
         setShowResetModal(true);
     };
 
+    const expectedResetPhrase = resetType ? `CONFIRMO RESET ${resetType.toUpperCase()}` : '';
+
     const confirmReset = async () => {
         if (!resetType) return;
+        if (resetConfirmPhrase !== expectedResetPhrase) {
+            alert('Frase de confirmacao incorreta');
+            return;
+        }
 
         setIsResetting(true);
         try {
-            await api.system.resetDatabase(resetPassword, resetType);
+            await api.system.resetDatabase(resetPassword, resetType, resetConfirmPhrase);
             alert('Banco de dados limpo com sucesso!');
             setShowResetModal(false);
         } catch (error: any) {
@@ -364,6 +372,19 @@ const AdminSystemSettings: React.FC = () => {
                                         autoFocus
                                     />
                                 </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                                        Digite exatamente: <code className="text-red-600">{expectedResetPhrase}</code>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={resetConfirmPhrase}
+                                        onChange={(e) => setResetConfirmPhrase(e.target.value)}
+                                        className="w-full p-3 border border-gray-300 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-200 outline-none transition-all"
+                                        placeholder={expectedResetPhrase}
+                                    />
+                                </div>
                             </div>
 
                             <div className="p-6 pt-0 flex gap-3">
@@ -375,7 +396,7 @@ const AdminSystemSettings: React.FC = () => {
                                 </button>
                                 <button
                                     onClick={confirmReset}
-                                    disabled={isResetting || !resetPassword}
+                                    disabled={isResetting || !resetPassword || resetConfirmPhrase !== expectedResetPhrase}
                                     className="flex-1 px-4 py-3 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {isResetting ? (

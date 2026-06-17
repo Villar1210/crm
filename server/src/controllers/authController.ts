@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import speakeasy from 'speakeasy';
+import { socketService } from '../services/socketService';
 
-const prisma = new PrismaClient();
 
 if (!process.env.JWT_SECRET) {
     console.error('FATAL: JWT_SECRET environment variable is not set. Refusing to start.');
@@ -13,6 +13,27 @@ if (!process.env.JWT_SECRET) {
 const JWT_SECRET = process.env.JWT_SECRET;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function checkBruteForce(ip: string): Promise<void> {
+    try {
+        const recentFailures = await prisma.loginLog.count({
+            where: {
+                ip,
+                success: false,
+                createdAt: { gte: new Date(Date.now() - 15 * 60 * 1000) },
+            },
+        });
+        if (recentFailures >= 20) {
+            socketService.getIO().to('role_super_admin').emit('security:alert', {
+                type: 'brute_force',
+                ip,
+                attempts: recentFailures,
+                message: `${recentFailures} tentativas de login falhas do IP ${ip} nos ultimos 15 minutos`,
+            });
+            console.warn(`[Security] Possivel brute force: ${recentFailures} falhas do IP ${ip}`);
+        }
+    } catch { /* socket pode nao estar inicializado ainda */ }
+}
 
 async function getMaxLoginAttempts(): Promise<number> {
     try {
@@ -78,8 +99,11 @@ export const registerSuperAdmin = async (req: Request, res: Response) => {
     try {
         const { name, email, password, adminKey } = req.body;
 
-        const ADMIN_REGISTRATION_KEY = process.env.ADMIN_REGISTRATION_KEY || 'ivillar-admin-key-2024';
-
+        const ADMIN_REGISTRATION_KEY = process.env.ADMIN_REGISTRATION_KEY;
+        if (!ADMIN_REGISTRATION_KEY) {
+            console.error('FATAL: ADMIN_REGISTRATION_KEY environment variable is not set.');
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
         if (adminKey !== ADMIN_REGISTRATION_KEY) {
             return res.status(403).json({ error: 'Chave de administração inválida' });
         }
@@ -163,11 +187,13 @@ export const login = async (req: Request, res: Response) => {
                 const lockedUntil = new Date(Date.now() + lockMinutes * 60 * 1000);
                 await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: newAttempts, lockedUntil } });
                 await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'invalid_password_locked' } }).catch(() => {});
+                checkBruteForce(ip).catch(() => {});
                 return res.status(423).json({ error: `Conta bloqueada por ${lockMinutes} minutos após ${maxAttempts} tentativas falhas.` });
             }
 
             await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: newAttempts } });
             await prisma.loginLog.create({ data: { userId: user.id, email, ip, userAgent, success: false, failReason: 'invalid_password' } }).catch(() => {});
+            checkBruteForce(ip).catch(() => {});
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
@@ -215,6 +241,16 @@ export const login = async (req: Request, res: Response) => {
         console.log(`[Auth] Login successful for user id: ${user.id} (${user.role})`);
 
         const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
+
+        // Cookie httpOnly (defesa em profundidade) - mantemos o token no corpo
+        // tambem para compatibilidade com codigo existente que le do localStorage
+        res.cookie('auth_token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 8 * 60 * 60 * 1000,
+            path: '/',
+        });
 
         res.json({
             token,

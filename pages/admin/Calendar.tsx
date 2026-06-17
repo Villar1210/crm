@@ -71,7 +71,7 @@ const AdminCalendar: React.FC = () => {
       if (leadSearch.length > 2) {
         setSearchLoading(true);
         try {
-          const results = await api.leads.getAll(); // Ideally use a search endpoint
+          const { leads: results } = await api.leads.getAll({ query: leadSearch, limit: 20 });
           const filtered = results.filter(l =>
             l.name?.toLowerCase().includes(leadSearch.toLowerCase()) ||
             l.phone?.includes(leadSearch)

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
+import { sendEmail } from '../services/emailProviderService';
 
-const prisma = new PrismaClient();
 
 // Listar todas as campanhas
 export const getCampaigns = async (req: Request, res: Response) => {
@@ -185,7 +185,19 @@ export const sendCampaign = async (req: Request, res: Response) => {
 
         // Se for envio de teste
         if (testEmail) {
-            // TODO: Implementar envio de email de teste
+            const campaign = await prisma.emailCampaign.findUnique({ where: { id } });
+            if (!campaign) return res.status(404).json({ error: 'Campanha nao encontrada' });
+
+            const result = await sendEmail({
+                to: testEmail,
+                subject: `[TESTE] ${campaign.subject}`,
+                html: campaign.htmlContent || '',
+                from: campaign.senderEmail,
+            });
+
+            if (!result.success) {
+                return res.status(502).json({ error: 'Falha ao enviar email de teste. Verifique a configuracao do provider.' });
+            }
             return res.json({ message: 'Email de teste enviado com sucesso' });
         }
 

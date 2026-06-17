@@ -43,11 +43,11 @@ export const useCRM = () => {
         setLoading(true);
         try {
             const [leadsData, pipelinesData, settings] = await Promise.all([
-                api.leads.getAll(),
+                api.leads.getAll({ limit: 200 }),
                 api.pipelines.getAll(),
                 api.crm.getSettings()
             ]);
-            setLeads(leadsData || []);
+            setLeads(leadsData?.leads || []);
             if (pipelinesData?.pipelines?.length) {
                 setPipelines(pipelinesData.pipelines);
             }

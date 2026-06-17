@@ -1,9 +1,8 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { JobQueue } from '../services/queue';
 import { socialPublishService } from '../services/socialPublishService';
 
-const prisma = new PrismaClient();
 
 type PostMetrics = {
     likes: number;

@@ -1,11 +1,10 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
-const prisma = new PrismaClient();
 
 export const systemController = {
     resetDatabase: async (req: Request, res: Response) => {
-        const { password, type } = req.body;
+        const { password, type, confirmPhrase } = req.body;
 
         const RESET_PASSWORD = process.env.ADMIN_RESET_PASSWORD;
         if (!RESET_PASSWORD) {
@@ -14,6 +13,11 @@ export const systemController = {
         }
         if (!password || password !== RESET_PASSWORD) {
             return res.status(401).json({ error: 'Senha incorreta' });
+        }
+
+        const expectedPhrase = `CONFIRMO RESET ${String(type || '').toUpperCase()}`;
+        if (confirmPhrase !== expectedPhrase) {
+            return res.status(400).json({ error: `Digite exatamente: "${expectedPhrase}"` });
         }
 
         try {

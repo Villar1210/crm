@@ -23,5 +23,9 @@ const registerLimiter = rateLimit({
 router.post('/login', loginLimiter, login);
 router.post('/register', registerLimiter, register);
 router.post('/change-password', changePassword);
+router.post('/logout', (_req, res) => {
+    res.clearCookie('auth_token', { path: '/' });
+    res.json({ success: true });
+});
 
 export default router;

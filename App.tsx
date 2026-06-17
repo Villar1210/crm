@@ -1,24 +1,25 @@
 
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import Layout from './components/Layout';
 import AdminLayout from './components/AdminLayout';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 // Public Pages
-import Home from './pages/Home';
-import Properties from './pages/Properties';
-import PropertyDetails from './pages/PropertyDetails';
-import Campaigns from './pages/Campaigns';
-import Jobs from './pages/Jobs';
-import FunnelLinkTree from './pages/FunnelLinkTree';
-import BuyerLogin from './pages/buyer/Login';
-import ChangePassword from './pages/ChangePassword';
-import Register from './pages/Register';
-import BuyerDashboard from './pages/buyer/Dashboard';
-import Contact from './pages/Contact';
-import About from './pages/About';
-import Advertise from './pages/Advertise';
+const Home = lazy(() => import('./pages/Home'));
+const Properties = lazy(() => import('./pages/Properties'));
+const PropertyDetails = lazy(() => import('./pages/PropertyDetails'));
+const Campaigns = lazy(() => import('./pages/Campaigns'));
+const Jobs = lazy(() => import('./pages/Jobs'));
+const FunnelLinkTree = lazy(() => import('./pages/FunnelLinkTree'));
+const BuyerLogin = lazy(() => import('./pages/buyer/Login'));
+const ChangePassword = lazy(() => import('./pages/ChangePassword'));
+const Register = lazy(() => import('./pages/Register'));
+const BuyerDashboard = lazy(() => import('./pages/buyer/Dashboard'));
+const Contact = lazy(() => import('./pages/Contact'));
+const About = lazy(() => import('./pages/About'));
+const Advertise = lazy(() => import('./pages/Advertise'));
 
 // Admin Pages
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
@@ -27,6 +28,7 @@ const AdminCalendar = lazy(() => import('./pages/admin/Calendar'));
 const PropertiesList = lazy(() => import('./pages/admin/PropertiesList'));
 const PropertyForm = lazy(() => import('./pages/admin/PropertyForm'));
 const AdminSettings = lazy(() => import('./pages/admin/Settings'));
+const Help = lazy(() => import('./pages/admin/Help'));
 const AdminConfig = lazy(() => import('./pages/admin/AdminConfig'));
 const SuperAdmin = lazy(() => import('./pages/admin/SuperAdmin'));
 const UsersList = lazy(() => import('./pages/admin/UsersList'));
@@ -40,10 +42,10 @@ const PDFTools = lazy(() => import('./pages/admin/PDFTools'));
 const SignatureBuilder = lazy(() => import('./pages/admin/signatures/SignatureBuilder'));
 const AssinaturasWrapper = lazy(() => import('./pages/admin/assinaturas/AssinaturasWrapper'));
 const Security = lazy(() => import('./pages/admin/Security'));
-import { EnviarScreen } from './src/modules/enviar/EnviarScreen';
+const EnviarScreen = lazy(() => import('./src/modules/enviar/EnviarScreen').then(m => ({ default: m.EnviarScreen })));
 
 import SuperAdminRoute from './routes/SuperAdminRoute';
-import AdminSaaSLayout from './pages/admin/saas/AdminSaaSLayout';
+const AdminSaaSLayout = lazy(() => import('./pages/admin/saas/AdminSaaSLayout'));
 const AdminSaaSDashboard = lazy(() => import('./pages/admin/saas/AdminSaaSDashboard'));
 const AdminAccounts = lazy(() => import('./pages/admin/saas/AdminAccounts'));
 const AdminAccountDetails = lazy(() => import('./pages/admin/saas/AdminAccountDetails'));
@@ -51,7 +53,7 @@ const AdminPlans = lazy(() => import('./pages/admin/saas/AdminPlans'));
 const AdminModules = lazy(() => import('./pages/admin/saas/AdminModules'));
 const AdminBilling = lazy(() => import('./pages/admin/saas/AdminBilling'));
 const AdminSystemSettings = lazy(() => import('./pages/admin/saas/AdminSystemSettings'));
-import RealEstateLayout from './pages/admin/realEstate/RealEstateLayout';
+const RealEstateLayout = lazy(() => import('./pages/admin/realEstate/RealEstateLayout'));
 const RealEstateDashboard = lazy(() => import('./pages/admin/realEstate/Dashboard'));
 const RealEstateProperties = lazy(() => import('./pages/admin/realEstate/Properties'));
 const RealEstatePropertyCreate = lazy(() => import('./pages/admin/realEstate/PropertyCreate'));
@@ -62,23 +64,24 @@ const RealEstateOwnerCreate = lazy(() => import('./pages/admin/realEstate/OwnerC
 const RealEstateTenants = lazy(() => import('./pages/admin/realEstate/Tenants'));
 const RealEstateTenantCreate = lazy(() => import('./pages/admin/realEstate/TenantCreate'));
 const RealEstateFinance = lazy(() => import('./pages/admin/realEstate/Finance'));
-import RealEstateInvoiceCreate from './pages/admin/realEstate/InvoiceCreate';
-import RealEstateOccupancy from './pages/admin/realEstate/Occupancy';
-import RealEstateMaintenance from './pages/admin/realEstate/Maintenance';
-import RealEstateMaintenanceCreate from './pages/admin/realEstate/MaintenanceCreate';
-import RealEstateInspections from './pages/admin/realEstate/Inspections';
-import RealEstateInspectionCreate from './pages/admin/realEstate/InspectionCreate';
-import RealEstateDocuments from './pages/admin/realEstate/Documents';
-import RealEstateReports from './pages/admin/realEstate/Reports';
-import ContractWizard from './pages/admin/realEstate/ContractWizard';
-import ContractDetails from './pages/admin/realEstate/ContractDetails';
-import EmailDashboard from './pages/admin/emailMarketing/Dashboard';
-import EmailCampaignsList from './pages/admin/emailMarketing/CampaignsList';
-import CampaignWizard from './pages/admin/emailMarketing/CampaignWizard';
+const RealEstateInvoiceCreate = lazy(() => import('./pages/admin/realEstate/InvoiceCreate'));
+const RealEstateOccupancy = lazy(() => import('./pages/admin/realEstate/Occupancy'));
+const RealEstateMaintenance = lazy(() => import('./pages/admin/realEstate/Maintenance'));
+const RealEstateMaintenanceCreate = lazy(() => import('./pages/admin/realEstate/MaintenanceCreate'));
+const RealEstateInspections = lazy(() => import('./pages/admin/realEstate/Inspections'));
+const RealEstateInspectionCreate = lazy(() => import('./pages/admin/realEstate/InspectionCreate'));
+const RealEstateDocuments = lazy(() => import('./pages/admin/realEstate/Documents'));
+const RealEstateReports = lazy(() => import('./pages/admin/realEstate/Reports'));
+const ContractWizard = lazy(() => import('./pages/admin/realEstate/ContractWizard'));
+const ContractDetails = lazy(() => import('./pages/admin/realEstate/ContractDetails'));
+const EmailDashboard = lazy(() => import('./pages/admin/emailMarketing/Dashboard'));
+const EmailCampaignsList = lazy(() => import('./pages/admin/emailMarketing/CampaignsList'));
+const CampaignWizard = lazy(() => import('./pages/admin/emailMarketing/CampaignWizard'));
 
 
 const App: React.FC = () => {
   return (
+    <HelmetProvider>
     <ThemeProvider>
       <AuthProvider>
       <BrowserRouter>
@@ -129,7 +132,7 @@ const App: React.FC = () => {
             <Route path="email-marketing/campaigns/:id/edit" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><CampaignWizard /></Suspense>} />
 
             <Route element={<SuperAdminRoute />}>
-              <Route path="saas" element={<AdminSaaSLayout />}>
+              <Route path="saas" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminSaaSLayout /></Suspense>}>
                 <Route index element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminSaaSDashboard /></Suspense>} />
                 <Route path="contas" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminAccounts /></Suspense>} />
                 <Route path="contas/:id" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminAccountDetails /></Suspense>} />
@@ -140,7 +143,7 @@ const App: React.FC = () => {
                 <Route path="settings" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminSystemSettings /></Suspense>} />
               </Route>
             </Route>
-            <Route path="gestao-imobiliaria" element={<RealEstateLayout />}>
+            <Route path="gestao-imobiliaria" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateLayout /></Suspense>}>
               <Route index element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateDashboard /></Suspense>} />
               <Route path="imoveis/novo" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstatePropertyCreate /></Suspense>} />
               <Route path="imoveis/relatorios" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstatePropertyReports /></Suspense>} />
@@ -163,6 +166,7 @@ const App: React.FC = () => {
               <Route path="relatorios" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><RealEstateReports /></Suspense>} />
             </Route>
             <Route path="settings" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminSettings /></Suspense>} />
+            <Route path="help" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><Help /></Suspense>} />
             <Route path="security" element={<Suspense fallback={<></>}><Security /></Suspense>} />
             <Route path="config" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><AdminConfig /></Suspense>} />
             <Route path="super-admin" element={<Suspense fallback={<div className="flex items-center justify-center h-32"><div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full"></div></div>}><SuperAdmin /></Suspense>} />
@@ -176,6 +180,7 @@ const App: React.FC = () => {
       </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
+    </HelmetProvider>
   );
 };
 
